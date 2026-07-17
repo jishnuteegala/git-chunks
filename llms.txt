@@ -1,0 +1,33 @@
+# git-chunk
+
+> CLI that splits pending git changes into multiple commits (by max files
+> and/or max size per commit) and optionally pushes after each one, so every
+> push stays under SCM push size limits and per-push scan/hook timeouts.
+> Works as a git subcommand: `git chunk`. Non-interactive, idempotent, safe
+> to rerun after failures (already-committed chunks are skipped).
+
+Fixes errors like:
+- "remote: fatal: pack exceeds maximum allowed size" (GitHub)
+- "remote: GitLab: Push size limit exceeded"
+- "error: RPC failed; HTTP 413" / "HTTP 500"
+- "error VS403500: size of your push exceeds the limit" (Azure DevOps)
+- "remote: pre-receive hook declined" (timed-out server-side scan)
+
+Install: `npm i -g git-chunk` | `brew install jishnuteegala/tap/git-chunk` |
+`winget install jishnuteegala.git-chunk` | `go install github.com/jishnuteegala/git-chunk@latest`
+
+Common commands:
+- Preview plan (JSON): `git chunk --max-size 50M --dry-run --json`
+- Commit in chunks:    `git chunk --max-files 100 --max-size 50M -m "import assets"`
+- Commit + push each:  `git chunk --max-size 50M --push --retries 3 --log push.log`
+
+Behaviour notes:
+- At least one of --max-files / --max-size is required.
+- Progress goes to stderr; --dry-run plan goes to stdout.
+- Exit codes: 0 success, 1 runtime error, 2 usage error.
+- On push failure after retries, committed work is preserved; rerunning the
+  same command resumes (unpushed commits ride along with the next push).
+- A single file larger than --max-size still gets its own commit (files
+  cannot be split; use Git LFS for files over the platform hard limit).
+
+Docs: https://github.com/jishnuteegala/git-chunk

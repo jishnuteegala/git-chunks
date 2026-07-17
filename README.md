@@ -108,6 +108,22 @@ git chunk -s 50M -p --log push.log
 
 At least one of `--max-files` / `--max-size` is required.
 
+## Usage for AI agents and scripts
+
+`git-chunk` is non-interactive, idempotent, and safe to rerun. The recipe:
+
+```sh
+# 1. Preview the plan as JSON (stdout; progress goes to stderr)
+git chunk --max-size 50M --dry-run --json
+
+# 2. Execute: commit in chunks and push each one, with retries and a log
+git chunk --max-size 50M --push --retries 3 --log git-chunk.log
+```
+
+- Exit codes: `0` success, `1` runtime error, `2` usage error.
+- If a push fails after retries, committed work is preserved — rerun the exact same command to resume.
+- A machine-readable summary of this tool lives in [`llms.txt`](llms.txt).
+
 ## Resumability
 
 `git-chunk` is safe to rerun. Chunks are committed one at a time, so:
