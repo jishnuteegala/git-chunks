@@ -29,6 +29,23 @@ archives:
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
 
+nfpms:
+  - package_name: git-chunk
+    homepage: https://github.com/jishnuteegala/git-chunk
+    maintainer: Jishnu Teegala <134275562+jishnuteegala@users.noreply.github.com>
+    description: |-
+      Split large pushes into chunked commits to beat SCM push
+      size limits and per-push scan timeouts.
+    license: MIT
+    formats:
+      - deb
+      - rpm
+      - apk
+      - archlinux
+    dependencies:
+      - git
+    bindir: /usr/bin
+
 checksum:
   name_template: checksums.txt
 

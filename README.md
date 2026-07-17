@@ -1,6 +1,6 @@
 # git-chunk
 
-Commit (and optionally push) changes in small chunks to avoid SCM platform push size limits.
+Split large pushes into chunked commits to beat SCM push size limits and per-push scan timeouts.
 
 ## The problem
 
@@ -11,11 +11,17 @@ remote: fatal: pack exceeds maximum allowed size (2.00 GiB)        # GitHub
 remote: GitLab: Push size limit exceeded                           # GitLab
 error: RPC failed; HTTP 413 curl 22 The requested URL returned error: 413
 error: remote unpack failed: error VS403500: size of your push exceeds the limit  # Azure DevOps
+remote: pre-receive hook declined                                  # timed-out server-side scan
 ```
 
-Most git hosts cap the size of a single push (GitHub: 2 GB/pack, GitLab/Bitbucket/Azure DevOps: configurable, often less). The workaround is always the same tedious loop: stage some files, commit, push, repeat.
+A single oversized push fails for two distinct reasons:
 
-`git-chunk` automates that loop. It splits your pending changes into multiple commits based on criteria you set (max files and/or max size per commit), optionally pushing after each one so every push stays under the limit — with retries, resume support, and logging.
+- **Hard size limits** — most hosts cap the size of one push (GitHub: 2 GB/pack; GitLab/Bitbucket/Azure DevOps: configurable, often much less).
+- **Per-push scan and hook timeouts** — secret scanning, push protection, malware/DLP scanning, and custom pre-receive hooks all run against each push, and are killed after a time budget. A push with thousands of files or gigabytes of content can blow that budget, and the whole push is rejected even though it's under the size limit. Enterprise-managed GitLab/GitHub instances are especially prone to this.
+
+The workaround is always the same tedious loop: stage some files, commit, push, repeat.
+
+`git-chunk` automates that loop. It splits your pending changes into multiple commits based on criteria you set (max files and/or max size per commit), optionally pushing after each one — so every push stays under the size limit *and* gives server-side scans a small, fast workload. With retries, resume support, and logging.
 
 Because the binary is named `git-chunk`, git picks it up automatically as a subcommand: `git chunk`.
 
@@ -45,7 +51,25 @@ paru -S git-chunk-bin
 go install github.com/jishnuteegala/git-chunk@latest
 ```
 
-Or grab a prebuilt binary from [Releases](https://github.com/jishnuteegala/git-chunk/releases) — the build matrix covers linux, macOS (`darwin`), and windows on amd64 + arm64.
+### Linux packages
+
+Every release also ships native packages for the major package managers — grab the right one from [Releases](https://github.com/jishnuteegala/git-chunk/releases):
+
+```sh
+# Debian / Ubuntu (apt-based)
+sudo dpkg -i git-chunk_*_linux_amd64.deb
+
+# Fedora / RHEL (dnf-based)
+sudo rpm -i git-chunk_*_linux_amd64.rpm
+
+# Alpine
+sudo apk add --allow-untrusted git-chunk_*_linux_amd64.apk
+
+# Arch (or use the AUR package above)
+sudo pacman -U git-chunk_*_linux_amd64.pkg.tar.zst
+```
+
+Prebuilt binary archives are also on the Releases page — the build matrix covers linux, macOS (`darwin`), and windows on amd64 + arm64.
 
 ## Usage
 
