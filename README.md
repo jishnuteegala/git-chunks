@@ -166,7 +166,7 @@ Required repo secrets:
 
 | Secret | Purpose |
 |--------|---------|
-| `HOMEBREW_TAP_GITHUB_TOKEN` | PAT with write access to the tap + scoop bucket repos |
+| `PACKAGES_GITHUB_TOKEN` | PAT with write access to the tap + scoop bucket repos |
 | `WINGET_GITHUB_TOKEN` | PAT for the `winget-pkgs` fork used to open PRs to microsoft/winget-pkgs |
 | `NPM_TOKEN` | npm automation token |
 | `CHOCOLATEY_API_KEY` | chocolatey.org API key (optional; step is skipped without it) |
