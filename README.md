@@ -181,3 +181,7 @@ Required repo secrets:
 | `AUR_KEY` | SSH private key for the AUR package repo (optional; skipped without it) |
 
 One-time setup: create `homebrew-tap` and `scoop-bucket` repos, fork `microsoft/winget-pkgs`, and note that the first winget and Chocolatey submissions go through manual moderation before automation flows freely.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
