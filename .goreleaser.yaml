@@ -1,0 +1,155 @@
+version: 2
+
+project_name: git-chunk
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: git-chunk
+    binary: git-chunk
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  use: github
+  groups:
+    - title: Features
+      regexp: '^feat(\(.*\))?!?:'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^fix(\(.*\))?!?:'
+      order: 1
+    - title: Performance
+      regexp: '^perf(\(.*\))?!?:'
+      order: 2
+    - title: Other
+      order: 999
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+      - "^style:"
+      - "^refactor:"
+
+release:
+  mode: keep-existing
+  github:
+    owner: jishnuteegala
+    name: git-chunk
+
+homebrew_casks:
+  - name: git-chunk
+    repository:
+      owner: jishnuteegala
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/jishnuteegala/git-chunk
+    description: Commit and push changes in chunks to avoid SCM push size limits
+    license: MIT
+    hooks:
+      post:
+        install: |
+          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/git-chunk"]
+          end
+
+scoops:
+  - name: git-chunk
+    repository:
+      owner: jishnuteegala
+      name: scoop-bucket
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/jishnuteegala/git-chunk
+    description: Commit and push changes in chunks to avoid SCM push size limits
+    license: MIT
+
+aurs:
+  - name: git-chunk-bin
+    homepage: https://github.com/jishnuteegala/git-chunk
+    description: Commit and push changes in chunks to avoid SCM push size limits
+    maintainers:
+      - Jishnu Teegala <134275562+jishnuteegala@users.noreply.github.com>
+    license: MIT
+    git_url: ssh://aur@aur.archlinux.org/git-chunk-bin.git
+    private_key: '{{ envOrDefault "AUR_KEY" "" }}'
+    skip_upload: '{{ if index .Env "AUR_KEY" }}false{{ else }}true{{ end }}'
+    package: |-
+      install -Dm755 "./git-chunk" "${pkgdir}/usr/bin/git-chunk"
+      install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/git-chunk/LICENSE"
+    commit_author:
+      name: Jishnu Teegala
+      email: 134275562+jishnuteegala@users.noreply.github.com
+
+winget:
+  - name: git-chunk
+    publisher: jishnuteegala
+    package_identifier: jishnuteegala.git-chunk
+    publisher_url: https://github.com/jishnuteegala
+    publisher_support_url: https://github.com/jishnuteegala/git-chunk/issues
+    homepage: https://github.com/jishnuteegala/git-chunk
+    short_description: Commit and push changes in chunks to avoid SCM push size limits
+    license: MIT
+    license_url: https://github.com/jishnuteegala/git-chunk/blob/main/LICENSE
+    release_notes: "{{ .Changelog }}"
+    release_notes_url: https://github.com/jishnuteegala/git-chunk/releases/tag/v{{ .Version }}
+    tags:
+      - git
+      - cli
+      - push
+    repository:
+      owner: jishnuteegala
+      name: winget-pkgs
+      branch: git-chunk-{{ .Version }}
+      token: "{{ .Env.WINGET_GITHUB_TOKEN }}"
+      pull_request:
+        enabled: true
+        base:
+          owner: microsoft
+          name: winget-pkgs
+          branch: master
+
+chocolateys:
+  - name: git-chunk
+    title: git-chunk
+    authors: Jishnu Teegala
+    owners: Jishnu Teegala
+    project_url: https://github.com/jishnuteegala/git-chunk
+    project_source_url: https://github.com/jishnuteegala/git-chunk
+    package_source_url: https://github.com/jishnuteegala/git-chunk
+    docs_url: https://github.com/jishnuteegala/git-chunk/blob/main/README.md
+    bug_tracker_url: https://github.com/jishnuteegala/git-chunk/issues
+    license_url: https://github.com/jishnuteegala/git-chunk/blob/main/LICENSE
+    require_license_acceptance: false
+    summary: Commit and push changes in chunks to avoid SCM push size limits
+    description: |
+      git-chunk splits pending changes into multiple commits based on
+      criteria you set (max files, max size per commit), optionally pushing
+      after each one so every push stays under SCM platform size limits.
+    release_notes: "https://github.com/jishnuteegala/git-chunk/releases/tag/v{{ .Version }}"
+    tags: "git cli push chunk"
+    skip_publish: true
