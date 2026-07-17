@@ -1,5 +1,13 @@
 # git-chunks
 
+[![CI](https://github.com/jishnuteegala/git-chunks/actions/workflows/ci.yml/badge.svg)](https://github.com/jishnuteegala/git-chunks/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/jishnuteegala/git-chunks?include_prereleases)](https://github.com/jishnuteegala/git-chunks/releases)
+[![Go Reference](https://pkg.go.dev/badge/github.com/jishnuteegala/git-chunks.svg)](https://pkg.go.dev/github.com/jishnuteegala/git-chunks)
+[![Go Report Card](https://goreportcard.com/badge/github.com/jishnuteegala/git-chunks)](https://goreportcard.com/report/github.com/jishnuteegala/git-chunks)
+[![npm](https://img.shields.io/npm/v/git-chunks)](https://www.npmjs.com/package/git-chunks)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-fe5196?logo=conventionalcommits&logoColor=white)](https://www.conventionalcommits.org)
+
 Split large pushes into chunked commits to beat SCM push size limits and per-push scan timeouts.
 
 ## The problem
