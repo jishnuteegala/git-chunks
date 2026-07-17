@@ -12,6 +12,7 @@ remote: GitLab: Push size limit exceeded                           # GitLab
 error: RPC failed; HTTP 413 curl 22 The requested URL returned error: 413
 error: remote unpack failed: error VS403500: size of your push exceeds the limit  # Azure DevOps
 remote: pre-receive hook declined                                  # timed-out server-side scan
+error: RPC failed; HTTP 500 curl 22 The requested URL returned error: 500  # server timed out processing the push
 ```
 
 A single oversized push fails for two distinct reasons:
@@ -53,21 +54,20 @@ go install github.com/jishnuteegala/git-chunk@latest
 
 ### Linux packages
 
-Every release also ships native packages for the major package managers — grab the right one from [Releases](https://github.com/jishnuteegala/git-chunk/releases):
+`git-chunk` is not in the official Debian/Fedora/etc. archives, so plain `apt install git-chunk` won't work. Instead, every release attaches native packages you download and install manually. For example (amd64):
 
 ```sh
-# Debian / Ubuntu (apt-based)
-sudo dpkg -i git-chunk_*_linux_amd64.deb
+VERSION=$(curl -s https://api.github.com/repos/jishnuteegala/git-chunk/releases/latest | grep -Po '"tag_name": "v\K[^"]*')
 
-# Fedora / RHEL (dnf-based)
-sudo rpm -i git-chunk_*_linux_amd64.rpm
+# Debian / Ubuntu
+curl -LO "https://github.com/jishnuteegala/git-chunk/releases/download/v${VERSION}/git-chunk_${VERSION}_linux_amd64.deb"
+sudo dpkg -i "git-chunk_${VERSION}_linux_amd64.deb"
 
-# Alpine
-sudo apk add --allow-untrusted git-chunk_*_linux_amd64.apk
-
-# Arch (or use the AUR package above)
-sudo pacman -U git-chunk_*_linux_amd64.pkg.tar.zst
+# Fedora / RHEL
+sudo dnf install "https://github.com/jishnuteegala/git-chunk/releases/download/v${VERSION}/git-chunk_${VERSION}_linux_amd64.rpm"
 ```
+
+`.apk` (Alpine) and `.pkg.tar.zst` (Arch) packages are also attached to each [release](https://github.com/jishnuteegala/git-chunk/releases); Arch users should prefer the AUR package above, which handles updates. Note these manual installs don't auto-update — Homebrew, npm, or the AUR are better if you want upgrades handled for you.
 
 Prebuilt binary archives are also on the Releases page — the build matrix covers linux, macOS (`darwin`), and windows on amd64 + arm64.
 
