@@ -1,14 +1,14 @@
 version: 2
 
-project_name: git-chunk
+project_name: git-chunker
 
 before:
   hooks:
     - go mod tidy
 
 builds:
-  - id: git-chunk
-    binary: git-chunk
+  - id: git-chunker
+    binary: git-chunker
     env:
       - CGO_ENABLED=0
     goos:
@@ -30,8 +30,8 @@ archives:
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
 
 nfpms:
-  - package_name: git-chunk
-    homepage: https://github.com/jishnuteegala/git-chunk
+  - package_name: git-chunker
+    homepage: https://github.com/jishnuteegala/git-chunker
     maintainer: Jishnu Teegala <134275562+jishnuteegala@users.noreply.github.com>
     description: |-
       Split large pushes into chunked commits to beat SCM push
@@ -77,63 +77,63 @@ release:
   mode: keep-existing
   github:
     owner: jishnuteegala
-    name: git-chunk
+    name: git-chunker
 
 homebrew_casks:
-  - name: git-chunk
+  - name: git-chunker
     repository:
       owner: jishnuteegala
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: https://github.com/jishnuteegala/git-chunk
+    homepage: https://github.com/jishnuteegala/git-chunker
     description: Commit and push changes in chunks to avoid SCM push size limits
     license: MIT
     hooks:
       post:
         install: |
           if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/git-chunk"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/git-chunker"]
           end
 
 scoops:
-  - name: git-chunk
+  - name: git-chunker
     repository:
       owner: jishnuteegala
       name: scoop-bucket
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: https://github.com/jishnuteegala/git-chunk
+    homepage: https://github.com/jishnuteegala/git-chunker
     description: Commit and push changes in chunks to avoid SCM push size limits
     license: MIT
 
 aurs:
-  - name: git-chunk-bin
-    homepage: https://github.com/jishnuteegala/git-chunk
+  - name: git-chunker-bin
+    homepage: https://github.com/jishnuteegala/git-chunker
     description: Commit and push changes in chunks to avoid SCM push size limits
     maintainers:
       - Jishnu Teegala <134275562+jishnuteegala@users.noreply.github.com>
     license: MIT
-    git_url: ssh://aur@aur.archlinux.org/git-chunk-bin.git
+    git_url: ssh://aur@aur.archlinux.org/git-chunker-bin.git
     private_key: '{{ envOrDefault "AUR_KEY" "" }}'
     skip_upload: '{{ if index .Env "AUR_KEY" }}false{{ else }}true{{ end }}'
     package: |-
-      install -Dm755 "./git-chunk" "${pkgdir}/usr/bin/git-chunk"
-      install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/git-chunk/LICENSE"
+      install -Dm755 "./git-chunker" "${pkgdir}/usr/bin/git-chunker"
+      install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/git-chunker/LICENSE"
     commit_author:
       name: Jishnu Teegala
       email: 134275562+jishnuteegala@users.noreply.github.com
 
 winget:
-  - name: git-chunk
+  - name: git-chunker
     publisher: jishnuteegala
-    package_identifier: jishnuteegala.git-chunk
+    package_identifier: jishnuteegala.git-chunker
     publisher_url: https://github.com/jishnuteegala
-    publisher_support_url: https://github.com/jishnuteegala/git-chunk/issues
-    homepage: https://github.com/jishnuteegala/git-chunk
+    publisher_support_url: https://github.com/jishnuteegala/git-chunker/issues
+    homepage: https://github.com/jishnuteegala/git-chunker
     short_description: Commit and push changes in chunks to avoid SCM push size limits
     license: MIT
-    license_url: https://github.com/jishnuteegala/git-chunk/blob/main/LICENSE
+    license_url: https://github.com/jishnuteegala/git-chunker/blob/main/LICENSE
     release_notes: "{{ .Changelog }}"
-    release_notes_url: https://github.com/jishnuteegala/git-chunk/releases/tag/v{{ .Version }}
+    release_notes_url: https://github.com/jishnuteegala/git-chunker/releases/tag/v{{ .Version }}
     tags:
       - git
       - cli
@@ -141,7 +141,7 @@ winget:
     repository:
       owner: jishnuteegala
       name: winget-pkgs
-      branch: git-chunk-{{ .Version }}
+      branch: git-chunker-{{ .Version }}
       token: "{{ .Env.WINGET_GITHUB_TOKEN }}"
       pull_request:
         enabled: true
@@ -151,22 +151,22 @@ winget:
           branch: master
 
 chocolateys:
-  - name: git-chunk
-    title: git-chunk
+  - name: git-chunker
+    title: git-chunker
     authors: Jishnu Teegala
     owners: Jishnu Teegala
-    project_url: https://github.com/jishnuteegala/git-chunk
-    project_source_url: https://github.com/jishnuteegala/git-chunk
-    package_source_url: https://github.com/jishnuteegala/git-chunk
-    docs_url: https://github.com/jishnuteegala/git-chunk/blob/main/README.md
-    bug_tracker_url: https://github.com/jishnuteegala/git-chunk/issues
-    license_url: https://github.com/jishnuteegala/git-chunk/blob/main/LICENSE
+    project_url: https://github.com/jishnuteegala/git-chunker
+    project_source_url: https://github.com/jishnuteegala/git-chunker
+    package_source_url: https://github.com/jishnuteegala/git-chunker
+    docs_url: https://github.com/jishnuteegala/git-chunker/blob/main/README.md
+    bug_tracker_url: https://github.com/jishnuteegala/git-chunker/issues
+    license_url: https://github.com/jishnuteegala/git-chunker/blob/main/LICENSE
     require_license_acceptance: false
     summary: Commit and push changes in chunks to avoid SCM push size limits
     description: |
-      git-chunk splits pending changes into multiple commits based on
+      git-chunker splits pending changes into multiple commits based on
       criteria you set (max files, max size per commit), optionally pushing
       after each one so every push stays under SCM platform size limits.
-    release_notes: "https://github.com/jishnuteegala/git-chunk/releases/tag/v{{ .Version }}"
+    release_notes: "https://github.com/jishnuteegala/git-chunker/releases/tag/v{{ .Version }}"
     tags: "git cli push chunk"
     skip_publish: true

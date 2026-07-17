@@ -1,4 +1,4 @@
-// git-chunk commits (and optionally pushes) pending changes in small
+// git-chunker commits (and optionally pushes) pending changes in small
 // chunks, so every push stays under SCM platform size limits.
 package main
 
@@ -37,30 +37,30 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Println("git-chunk", version)
+		fmt.Println("git-chunker", version)
 		return
 	}
 
 	if flag.NArg() > 0 {
-		fmt.Fprintf(os.Stderr, "git-chunk: unexpected argument %q\nRun 'git-chunk --help' for usage.\n", flag.Arg(0))
+		fmt.Fprintf(os.Stderr, "git-chunker: unexpected argument %q\nRun 'git-chunker --help' for usage.\n", flag.Arg(0))
 		os.Exit(2)
 	}
 
 	if err := Run(opts, os.Stdout, os.Stderr); err != nil {
-		fmt.Fprintln(os.Stderr, "git-chunk:", err)
+		fmt.Fprintln(os.Stderr, "git-chunker:", err)
 		os.Exit(1)
 	}
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `git-chunk %s — commit and push changes in chunks
+	fmt.Fprintf(os.Stderr, `git-chunker %s — commit and push changes in chunks
 
 Splits pending changes into multiple commits based on criteria you set,
 optionally pushing after each one, so every push stays under SCM platform
 size limits. Safe to rerun: already-committed chunks are skipped.
 
 Usage:
-  git chunk [flags]
+  git chunker [flags]
 
 Chunking (at least one required):
   -n, --max-files <n>    max files per commit
@@ -85,11 +85,11 @@ Other:
   -h, --help             show this help
 
 Examples:
-  git chunk -n 20                     20 files per commit
-  git chunk -s 50M -p                 max 50 MB per commit, push each
-  git chunk -n 100 -s 100M --dry-run  preview the plan
-  git chunk -s 50M -p --log push.log  keep a persistent progress log
+  git chunker -n 20                     20 files per commit
+  git chunker -s 50M -p                 max 50 MB per commit, push each
+  git chunker -n 100 -s 100M --dry-run  preview the plan
+  git chunker -s 50M -p --log push.log  keep a persistent progress log
 
-Docs: https://github.com/jishnuteegala/git-chunk
+Docs: https://github.com/jishnuteegala/git-chunker
 `, version)
 }

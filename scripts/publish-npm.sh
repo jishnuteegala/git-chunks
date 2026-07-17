@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Publishes per-platform binary packages plus the main git-chunk package.
+# Publishes per-platform binary packages plus the main git-chunker package.
 # Run by the release workflow after goreleaser has built ./dist.
 # Usage: scripts/publish-npm.sh <version>
 set -euo pipefail
@@ -14,11 +14,11 @@ publish_platform() {
   local key="$1" goreleaser_dir="$2"
   local os="${key%-*}" arch="${key#*-}"
   local build_dir="$DIST/$goreleaser_dir"
-  local pkg_dir="$STAGE/git-chunk-$key"
+  local pkg_dir="$STAGE/git-chunker-$key"
   mkdir -p "$pkg_dir/bin"
 
-  local binary="git-chunk"
-  [ "$os" = "windows" ] && binary="git-chunk.exe"
+  local binary="git-chunker"
+  [ "$os" = "windows" ] && binary="git-chunker.exe"
   cp "$build_dir/$binary" "$pkg_dir/bin/"
 
   local node_os="$os"
@@ -26,10 +26,10 @@ publish_platform() {
 
   cat > "$pkg_dir/package.json" <<EOF
 {
-  "name": "git-chunk-$key",
+  "name": "git-chunker-$key",
   "version": "$VERSION",
-  "description": "git-chunk binary for $key",
-  "repository": "github:jishnuteegala/git-chunk",
+  "description": "git-chunker binary for $key",
+  "repository": "github:jishnuteegala/git-chunker",
   "license": "MIT",
   "os": ["$node_os"],
   "cpu": ["$arch"]
@@ -45,12 +45,12 @@ publish_platform darwin-arm64  git-chunk_darwin_arm64_v8.0
 publish_platform windows-x64   git-chunk_windows_amd64_v1
 publish_platform windows-arm64 git-chunk_windows_arm64_v8.0
 
-main_pkg="$STAGE/git-chunk"
+main_pkg="$STAGE/git-chunker"
 mkdir -p "$main_pkg/bin"
-cp "$ROOT/npm/git-chunk/bin/git-chunk.js" "$main_pkg/bin/"
+cp "$ROOT/npm/git-chunker/bin/git-chunker.js" "$main_pkg/bin/"
 cp "$ROOT/README.md" "$main_pkg/"
 node -e "
-const pkg = require('$ROOT/npm/git-chunk/package.json');
+const pkg = require('$ROOT/npm/git-chunker/package.json');
 pkg.version = '$VERSION';
 for (const dep of Object.keys(pkg.optionalDependencies)) {
   pkg.optionalDependencies[dep] = '$VERSION';

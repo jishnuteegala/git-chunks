@@ -1,4 +1,4 @@
 dist/
 npm-stage/
-git-chunk
-git-chunk.exe
+/git-chunker
+git-chunker.exe
