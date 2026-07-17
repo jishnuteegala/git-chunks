@@ -1,9 +1,9 @@
-# git-chunker
+# git-chunks
 
 > CLI that splits pending git changes into multiple commits (by max files
 > and/or max size per commit) and optionally pushes after each one, so every
 > push stays under SCM push size limits and per-push scan/hook timeouts.
-> Works as a git subcommand: `git chunker`. Non-interactive, idempotent, safe
+> Works as a git subcommand: `git chunks`. Non-interactive, idempotent, safe
 > to rerun after failures (already-committed chunks are skipped).
 
 Fixes errors like:
@@ -13,13 +13,13 @@ Fixes errors like:
 - "error VS403500: size of your push exceeds the limit" (Azure DevOps)
 - "remote: pre-receive hook declined" (timed-out server-side scan)
 
-Install: `npm i -g git-chunker` | `brew install jishnuteegala/tap/git-chunker` |
-`winget install jishnuteegala.git-chunker` | `go install github.com/jishnuteegala/git-chunker@latest`
+Install: `npm i -g git-chunks` | `brew install jishnuteegala/tap/git-chunks` |
+`winget install jishnuteegala.git-chunks` | `go install github.com/jishnuteegala/git-chunks@latest`
 
 Common commands:
-- Preview plan (JSON): `git chunker --max-size 50M --dry-run --json`
-- Commit in chunks:    `git chunker --max-files 100 --max-size 50M -m "import assets"`
-- Commit + push each:  `git chunker --max-size 50M --push --retries 3 --log push.log`
+- Preview plan (JSON): `git chunks --max-size 50M --dry-run --json`
+- Commit in chunks:    `git chunks --max-files 100 --max-size 50M -m "import assets"`
+- Commit + push each:  `git chunks --max-size 50M --push --retries 3 --log push.log`
 
 Behaviour notes:
 - At least one of --max-files / --max-size is required.
@@ -30,4 +30,4 @@ Behaviour notes:
 - A single file larger than --max-size still gets its own commit (files
   cannot be split; use Git LFS for files over the platform hard limit).
 
-Docs: https://github.com/jishnuteegala/git-chunker
+Docs: https://github.com/jishnuteegala/git-chunks

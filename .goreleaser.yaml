@@ -1,14 +1,14 @@
 version: 2
 
-project_name: git-chunker
+project_name: git-chunks
 
 before:
   hooks:
     - go mod tidy
 
 builds:
-  - id: git-chunker
-    binary: git-chunker
+  - id: git-chunks
+    binary: git-chunks
     env:
       - CGO_ENABLED=0
     goos:
@@ -30,8 +30,8 @@ archives:
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
 
 nfpms:
-  - package_name: git-chunker
-    homepage: https://github.com/jishnuteegala/git-chunker
+  - package_name: git-chunks
+    homepage: https://github.com/jishnuteegala/git-chunks
     maintainer: Jishnu Teegala <134275562+jishnuteegala@users.noreply.github.com>
     description: |-
       Split large pushes into chunked commits to beat SCM push
@@ -77,63 +77,63 @@ release:
   mode: keep-existing
   github:
     owner: jishnuteegala
-    name: git-chunker
+    name: git-chunks
 
 homebrew_casks:
-  - name: git-chunker
+  - name: git-chunks
     repository:
       owner: jishnuteegala
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: https://github.com/jishnuteegala/git-chunker
+    homepage: https://github.com/jishnuteegala/git-chunks
     description: Commit and push changes in chunks to avoid SCM push size limits
     license: MIT
     hooks:
       post:
         install: |
           if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/git-chunker"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/git-chunks"]
           end
 
 scoops:
-  - name: git-chunker
+  - name: git-chunks
     repository:
       owner: jishnuteegala
       name: scoop-bucket
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: https://github.com/jishnuteegala/git-chunker
+    homepage: https://github.com/jishnuteegala/git-chunks
     description: Commit and push changes in chunks to avoid SCM push size limits
     license: MIT
 
 aurs:
-  - name: git-chunker-bin
-    homepage: https://github.com/jishnuteegala/git-chunker
+  - name: git-chunks-bin
+    homepage: https://github.com/jishnuteegala/git-chunks
     description: Commit and push changes in chunks to avoid SCM push size limits
     maintainers:
       - Jishnu Teegala <134275562+jishnuteegala@users.noreply.github.com>
     license: MIT
-    git_url: ssh://aur@aur.archlinux.org/git-chunker-bin.git
+    git_url: ssh://aur@aur.archlinux.org/git-chunks-bin.git
     private_key: '{{ envOrDefault "AUR_KEY" "" }}'
     skip_upload: '{{ if index .Env "AUR_KEY" }}false{{ else }}true{{ end }}'
     package: |-
-      install -Dm755 "./git-chunker" "${pkgdir}/usr/bin/git-chunker"
-      install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/git-chunker/LICENSE"
+      install -Dm755 "./git-chunks" "${pkgdir}/usr/bin/git-chunks"
+      install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/git-chunks/LICENSE"
     commit_author:
       name: Jishnu Teegala
       email: 134275562+jishnuteegala@users.noreply.github.com
 
 winget:
-  - name: git-chunker
+  - name: git-chunks
     publisher: jishnuteegala
-    package_identifier: jishnuteegala.git-chunker
+    package_identifier: jishnuteegala.git-chunks
     publisher_url: https://github.com/jishnuteegala
-    publisher_support_url: https://github.com/jishnuteegala/git-chunker/issues
-    homepage: https://github.com/jishnuteegala/git-chunker
+    publisher_support_url: https://github.com/jishnuteegala/git-chunks/issues
+    homepage: https://github.com/jishnuteegala/git-chunks
     short_description: Commit and push changes in chunks to avoid SCM push size limits
     license: MIT
-    license_url: https://github.com/jishnuteegala/git-chunker/blob/main/LICENSE
+    license_url: https://github.com/jishnuteegala/git-chunks/blob/main/LICENSE
     release_notes: "{{ .Changelog }}"
-    release_notes_url: https://github.com/jishnuteegala/git-chunker/releases/tag/v{{ .Version }}
+    release_notes_url: https://github.com/jishnuteegala/git-chunks/releases/tag/v{{ .Version }}
     tags:
       - git
       - cli
@@ -141,7 +141,7 @@ winget:
     repository:
       owner: jishnuteegala
       name: winget-pkgs
-      branch: git-chunker-{{ .Version }}
+      branch: git-chunks-{{ .Version }}
       token: "{{ .Env.WINGET_GITHUB_TOKEN }}"
       pull_request:
         enabled: true
@@ -151,22 +151,22 @@ winget:
           branch: master
 
 chocolateys:
-  - name: git-chunker
-    title: git-chunker
+  - name: git-chunks
+    title: git-chunks
     authors: Jishnu Teegala
     owners: Jishnu Teegala
-    project_url: https://github.com/jishnuteegala/git-chunker
-    project_source_url: https://github.com/jishnuteegala/git-chunker
-    package_source_url: https://github.com/jishnuteegala/git-chunker
-    docs_url: https://github.com/jishnuteegala/git-chunker/blob/main/README.md
-    bug_tracker_url: https://github.com/jishnuteegala/git-chunker/issues
-    license_url: https://github.com/jishnuteegala/git-chunker/blob/main/LICENSE
+    project_url: https://github.com/jishnuteegala/git-chunks
+    project_source_url: https://github.com/jishnuteegala/git-chunks
+    package_source_url: https://github.com/jishnuteegala/git-chunks
+    docs_url: https://github.com/jishnuteegala/git-chunks/blob/main/README.md
+    bug_tracker_url: https://github.com/jishnuteegala/git-chunks/issues
+    license_url: https://github.com/jishnuteegala/git-chunks/blob/main/LICENSE
     require_license_acceptance: false
     summary: Commit and push changes in chunks to avoid SCM push size limits
     description: |
-      git-chunker splits pending changes into multiple commits based on
+      git-chunks splits pending changes into multiple commits based on
       criteria you set (max files, max size per commit), optionally pushing
       after each one so every push stays under SCM platform size limits.
-    release_notes: "https://github.com/jishnuteegala/git-chunker/releases/tag/v{{ .Version }}"
+    release_notes: "https://github.com/jishnuteegala/git-chunks/releases/tag/v{{ .Version }}"
     tags: "git cli push chunk"
     skip_publish: true

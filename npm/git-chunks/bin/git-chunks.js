@@ -4,31 +4,31 @@ const { spawnSync } = require("child_process");
 const path = require("path");
 
 const packages = {
-  "linux-x64": "git-chunker-linux-x64",
-  "linux-arm64": "git-chunker-linux-arm64",
-  "darwin-x64": "git-chunker-darwin-x64",
-  "darwin-arm64": "git-chunker-darwin-arm64",
-  "win32-x64": "git-chunker-windows-x64",
-  "win32-arm64": "git-chunker-windows-arm64",
+  "linux-x64": "git-chunks-linux-x64",
+  "linux-arm64": "git-chunks-linux-arm64",
+  "darwin-x64": "git-chunks-darwin-x64",
+  "darwin-arm64": "git-chunks-darwin-arm64",
+  "win32-x64": "git-chunks-windows-x64",
+  "win32-arm64": "git-chunks-windows-arm64",
 };
 
 const key = `${process.platform}-${process.arch}`;
 const pkg = packages[key];
 if (!pkg) {
-  console.error(`git-chunker: unsupported platform ${key}`);
+  console.error(`git-chunks: unsupported platform ${key}`);
   process.exit(1);
 }
 
-const binaryName = process.platform === "win32" ? "git-chunker.exe" : "git-chunker";
+const binaryName = process.platform === "win32" ? "git-chunks.exe" : "git-chunks";
 let binary;
 try {
   binary = path.join(path.dirname(require.resolve(`${pkg}/package.json`)), "bin", binaryName);
 } catch {
   console.error(
-    `git-chunker: platform package ${pkg} is not installed.\n` +
+    `git-chunks: platform package ${pkg} is not installed.\n` +
       "This can happen if optional dependencies are disabled. " +
       "Reinstall without --no-optional, or download a binary from " +
-      "https://github.com/jishnuteegala/git-chunker/releases",
+      "https://github.com/jishnuteegala/git-chunks/releases",
   );
   process.exit(1);
 }

@@ -1,4 +1,4 @@
-// git-chunker commits (and optionally pushes) pending changes in small
+// git-chunks commits (and optionally pushes) pending changes in small
 // chunks, so every push stays under SCM platform size limits.
 package main
 
@@ -37,30 +37,30 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Println("git-chunker", version)
+		fmt.Println("git-chunks", version)
 		return
 	}
 
 	if flag.NArg() > 0 {
-		fmt.Fprintf(os.Stderr, "git-chunker: unexpected argument %q\nRun 'git-chunker --help' for usage.\n", flag.Arg(0))
+		fmt.Fprintf(os.Stderr, "git-chunks: unexpected argument %q\nRun 'git-chunks --help' for usage.\n", flag.Arg(0))
 		os.Exit(2)
 	}
 
 	if err := Run(opts, os.Stdout, os.Stderr); err != nil {
-		fmt.Fprintln(os.Stderr, "git-chunker:", err)
+		fmt.Fprintln(os.Stderr, "git-chunks:", err)
 		os.Exit(1)
 	}
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `git-chunker %s — commit and push changes in chunks
+	fmt.Fprintf(os.Stderr, `git-chunks %s — commit and push changes in chunks
 
 Splits pending changes into multiple commits based on criteria you set,
 optionally pushing after each one, so every push stays under SCM platform
 size limits. Safe to rerun: already-committed chunks are skipped.
 
 Usage:
-  git chunker [flags]
+  git chunks [flags]
 
 Chunking (at least one required):
   -n, --max-files <n>    max files per commit
@@ -85,11 +85,11 @@ Other:
   -h, --help             show this help
 
 Examples:
-  git chunker -n 20                     20 files per commit
-  git chunker -s 50M -p                 max 50 MB per commit, push each
-  git chunker -n 100 -s 100M --dry-run  preview the plan
-  git chunker -s 50M -p --log push.log  keep a persistent progress log
+  git chunks -n 20                     20 files per commit
+  git chunks -s 50M -p                 max 50 MB per commit, push each
+  git chunks -n 100 -s 100M --dry-run  preview the plan
+  git chunks -s 50M -p --log push.log  keep a persistent progress log
 
-Docs: https://github.com/jishnuteegala/git-chunker
+Docs: https://github.com/jishnuteegala/git-chunks
 `, version)
 }

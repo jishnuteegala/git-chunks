@@ -1,0 +1,19 @@
+{
+  "name": "git-chunks",
+  "version": "0.0.0",
+  "description": "Commit and push changes in chunks to avoid SCM push size limits",
+  "repository": "github:jishnuteegala/git-chunks",
+  "license": "MIT",
+  "keywords": ["git", "cli", "push", "chunk", "size-limit"],
+  "bin": {
+    "git-chunks": "bin/git-chunks.js"
+  },
+  "optionalDependencies": {
+    "git-chunks-linux-x64": "0.0.0",
+    "git-chunks-linux-arm64": "0.0.0",
+    "git-chunks-darwin-x64": "0.0.0",
+    "git-chunks-darwin-arm64": "0.0.0",
+    "git-chunks-windows-x64": "0.0.0",
+    "git-chunks-windows-arm64": "0.0.0"
+  }
+}

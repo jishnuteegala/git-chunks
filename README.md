@@ -1,4 +1,4 @@
-# git-chunker
+# git-chunks
 
 Split large pushes into chunked commits to beat SCM push size limits and per-push scan timeouts.
 
@@ -22,52 +22,52 @@ A single oversized push fails for two distinct reasons:
 
 The workaround is always the same tedious loop: stage some files, commit, push, repeat.
 
-`git-chunker` automates that loop. It splits your pending changes into multiple commits based on criteria you set (max files and/or max size per commit), optionally pushing after each one — so every push stays under the size limit *and* gives server-side scans a small, fast workload. With retries, resume support, and logging.
+`git-chunks` automates that loop. It splits your pending changes into multiple commits based on criteria you set (max files and/or max size per commit), optionally pushing after each one — so every push stays under the size limit *and* gives server-side scans a small, fast workload. With retries, resume support, and logging.
 
-Because the binary is named `git-chunker`, git picks it up automatically as a subcommand: `git chunker`.
+Because the binary is named `git-chunks`, git picks it up automatically as a subcommand: `git chunks`.
 
 ## Install
 
 ```sh
 # npm / bun / pnpm
-npm install -g git-chunker
+npm install -g git-chunks
 
 # Homebrew (macOS / Linux)
-brew install jishnuteegala/tap/git-chunker
+brew install jishnuteegala/tap/git-chunks
 
 # winget (Windows)
-winget install jishnuteegala.git-chunker
+winget install jishnuteegala.git-chunks
 
 # Scoop (Windows)
 scoop bucket add jishnuteegala https://github.com/jishnuteegala/scoop-bucket
-scoop install git-chunker
+scoop install git-chunks
 
 # Chocolatey (Windows)
-choco install git-chunker
+choco install git-chunks
 
 # AUR (Arch Linux)
-paru -S git-chunker-bin
+paru -S git-chunks-bin
 
 # Go
-go install github.com/jishnuteegala/git-chunker@latest
+go install github.com/jishnuteegala/git-chunks@latest
 ```
 
 ### Linux packages
 
-`git-chunker` is not in the official Debian/Fedora/etc. archives, so plain `apt install git-chunker` won't work. Instead, every release attaches native packages you download and install manually. For example (amd64):
+`git-chunks` is not in the official Debian/Fedora/etc. archives, so plain `apt install git-chunks` won't work. Instead, every release attaches native packages you download and install manually. For example (amd64):
 
 ```sh
-VERSION=$(curl -s https://api.github.com/repos/jishnuteegala/git-chunker/releases/latest | grep -Po '"tag_name": "v\K[^"]*')
+VERSION=$(curl -s https://api.github.com/repos/jishnuteegala/git-chunks/releases/latest | grep -Po '"tag_name": "v\K[^"]*')
 
 # Debian / Ubuntu
-curl -LO "https://github.com/jishnuteegala/git-chunker/releases/download/v${VERSION}/git-chunk_${VERSION}_linux_amd64.deb"
+curl -LO "https://github.com/jishnuteegala/git-chunks/releases/download/v${VERSION}/git-chunk_${VERSION}_linux_amd64.deb"
 sudo dpkg -i "git-chunk_${VERSION}_linux_amd64.deb"
 
 # Fedora / RHEL
-sudo dnf install "https://github.com/jishnuteegala/git-chunker/releases/download/v${VERSION}/git-chunk_${VERSION}_linux_amd64.rpm"
+sudo dnf install "https://github.com/jishnuteegala/git-chunks/releases/download/v${VERSION}/git-chunk_${VERSION}_linux_amd64.rpm"
 ```
 
-`.apk` (Alpine) and `.pkg.tar.zst` (Arch) packages are also attached to each [release](https://github.com/jishnuteegala/git-chunker/releases); Arch users should prefer the AUR package above, which handles updates. Note these manual installs don't auto-update — Homebrew, npm, or the AUR are better if you want upgrades handled for you.
+`.apk` (Alpine) and `.pkg.tar.zst` (Arch) packages are also attached to each [release](https://github.com/jishnuteegala/git-chunks/releases); Arch users should prefer the AUR package above, which handles updates. Note these manual installs don't auto-update — Homebrew, npm, or the AUR are better if you want upgrades handled for you.
 
 Prebuilt binary archives are also on the Releases page — the build matrix covers linux, macOS (`darwin`), and windows on amd64 + arm64.
 
@@ -75,17 +75,17 @@ Prebuilt binary archives are also on the Releases page — the build matrix cove
 
 ```sh
 # 20 files per commit
-git chunker -n 20
+git chunks -n 20
 
 # max 50 MB per commit, push after each commit
-git chunker -s 50M -p
+git chunks -s 50M -p
 
 # combine criteria, custom message, preview first
-git chunker -n 100 -s 100M -m "import legacy assets" --dry-run
+git chunks -n 100 -s 100M -m "import legacy assets" --dry-run
 
 # machine-readable plan, persistent log
-git chunker -s 50M --dry-run --json
-git chunker -s 50M -p --log push.log
+git chunks -s 50M --dry-run --json
+git chunks -s 50M -p --log push.log
 ```
 
 ## Flags
@@ -110,14 +110,14 @@ At least one of `--max-files` / `--max-size` is required.
 
 ## Usage for AI agents and scripts
 
-`git-chunker` is non-interactive, idempotent, and safe to rerun. The recipe:
+`git-chunks` is non-interactive, idempotent, and safe to rerun. The recipe:
 
 ```sh
 # 1. Preview the plan as JSON (stdout; progress goes to stderr)
-git chunker --max-size 50M --dry-run --json
+git chunks --max-size 50M --dry-run --json
 
 # 2. Execute: commit in chunks and push each one, with retries and a log
-git chunker --max-size 50M --push --retries 3 --log git-chunker.log
+git chunks --max-size 50M --push --retries 3 --log git-chunks.log
 ```
 
 - Exit codes: `0` success, `1` runtime error, `2` usage error.
@@ -126,7 +126,7 @@ git chunker --max-size 50M --push --retries 3 --log git-chunker.log
 
 ## Resumability
 
-`git-chunker` is safe to rerun. Chunks are committed one at a time, so:
+`git-chunks` is safe to rerun. Chunks are committed one at a time, so:
 
 - If a push fails (even after retries), committed work is preserved. Rerun the same command — already-committed chunks no longer show as pending, and the unpushed commits ride along with the next push.
 - On resume it tells you: `Resuming: N unpushed commit(s) from a previous run will ride along with the first push.`
@@ -157,7 +157,7 @@ Releases are fully automated with [Conventional Commits](https://www.conventiona
    - Publish the Homebrew cask to `jishnuteegala/homebrew-tap`
    - Publish the Scoop manifest to `jishnuteegala/scoop-bucket`
    - Open a PR to `microsoft/winget-pkgs` with the winget manifest
-   - Publish `git-chunker` + per-platform binary packages to npm
+   - Publish `git-chunks` + per-platform binary packages to npm
    - Push the Chocolatey `.nupkg` to chocolatey.org (if `CHOCOLATEY_API_KEY` is set)
 
 No manual steps between merging and published packages.
