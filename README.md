@@ -187,9 +187,9 @@ Releases are fully automated with [Conventional Commits](https://www.conventiona
    - Attach archives + checksums to the release, with a changelog grouped by type
    - Publish the Homebrew cask to `jishnuteegala/homebrew-tap`
    - Publish the Scoop manifest to `jishnuteegala/scoop-bucket`
-   - Open a PR to `microsoft/winget-pkgs` with the winget manifest
    - Publish `git-chunks` + per-platform binary packages to npm
-   - Publish the GitHub release only after every required channel verifies
+   - Publish the GitHub release after its directly controlled channels verify
+   - Open and verify a PR to `microsoft/winget-pkgs` after release assets are public
 
 No manual steps between merging and published packages.
 

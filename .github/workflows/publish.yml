@@ -171,7 +171,7 @@ jobs:
         run: bash scripts/publish-git-manifest.sh jishnuteegala/scoop-bucket dist/scoop/git-chunks.json bucket/git-chunks.json "$TAG_NAME"
 
   winget:
-    needs: [build, github]
+    needs: [build, finalize]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -187,7 +187,7 @@ jobs:
         run: bash scripts/publish-winget.sh "${TAG_NAME#v}"
 
   finalize:
-    needs: [github, npm, homebrew, scoop, winget]
+    needs: [github, npm, homebrew, scoop]
     runs-on: ubuntu-latest
     permissions:
       contents: write
