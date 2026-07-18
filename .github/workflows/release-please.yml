@@ -36,3 +36,5 @@ jobs:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       PACKAGES_GITHUB_TOKEN: ${{ secrets.PACKAGES_GITHUB_TOKEN }}
       WINGET_GITHUB_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
+      AUR_KEY: ${{ secrets.AUR_KEY }}
+      CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}

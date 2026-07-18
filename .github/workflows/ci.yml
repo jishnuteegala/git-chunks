@@ -50,8 +50,9 @@ jobs:
       - name: Build and verify release snapshot
         shell: bash
         run: |
-          go run github.com/goreleaser/goreleaser/v2@v2.17.0 release --snapshot --clean
+          go run github.com/goreleaser/goreleaser/v2@v2.17.0 release --snapshot --clean --skip=chocolatey
           VERSION=$(node -e 'const m=require("./dist/metadata.json"); process.stdout.write(m.version)')
           node scripts/verify-artifacts.mjs dist/artifacts.json "$VERSION"
           bash scripts/publish-npm.sh "$VERSION" --dry-run
+          powershell.exe -NoProfile -File scripts/package-chocolatey.ps1 -Version "$VERSION"
       - run: git diff --exit-code
