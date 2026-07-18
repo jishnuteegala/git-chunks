@@ -126,6 +126,22 @@ test("dry run packages all tarballs without registry queries or publishing", () 
   }
 });
 
+test("prepared mode publishes the exact preflighted tarballs", () => {
+  const root = fixture();
+  try {
+    const dry = run(root, "fresh", "1.2.3", "--dry-run");
+    assert.equal(dry.status, 0, dry.stderr);
+    const metadata = join(root, "npm-stage", "packages.json");
+    const before = readFileSync(metadata, "utf8");
+    const result = run(root, "fresh", "1.2.3", "--prepared");
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(readFileSync(metadata, "utf8"), before);
+    assert.equal(published(root).length, 7);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("missing and duplicate binaries fail in preflight", () => {
   for (const mutation of ["missing", "duplicate"]) {
     const root = fixture();

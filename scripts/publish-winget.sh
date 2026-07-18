@@ -19,9 +19,14 @@ git -C "$work/repo" add "$destination"
 if ! git -C "$work/repo" diff --cached --quiet; then git -C "$work/repo" commit -q -m "git-chunks v$version"; fi
 expected=$(git -C "$work/repo" -c http.extraheader="AUTHORIZATION: basic $auth" ls-remote origin "refs/heads/$branch" | cut -f1)
 git -C "$work/repo" -c http.extraheader="AUTHORIZATION: basic $auth" push -q --force-with-lease="refs/heads/$branch:$expected" origin "$branch"
-pr=$(gh pr list --repo microsoft/winget-pkgs --head "jishnuteegala:$branch" --state all --json url --jq '.[0].url')
+head=$(git -C "$work/repo" rev-parse HEAD)
+title="New version: jishnuteegala.git-chunks version $version"
+pr=$(gh pr list --repo microsoft/winget-pkgs --head "jishnuteegala:$branch" --state open --json url,headRefOid --jq ".[] | select(.headRefOid == \"$head\") | .url")
 if [ -z "$pr" ]; then
-  pr=$(gh pr create --repo microsoft/winget-pkgs --head "jishnuteegala:$branch" --base master --title "New version: jishnuteegala.git-chunks version $version" --body "Automated git-chunks release." )
+  pr=$(gh pr list --repo microsoft/winget-pkgs --state merged --search "\"$title\" in:title" --json url,title --jq ".[] | select(.title == \"$title\") | .url" | head -n1)
+fi
+if [ -z "$pr" ]; then
+  pr=$(gh pr create --repo microsoft/winget-pkgs --head "jishnuteegala:$branch" --base master --title "$title" --body "Automated git-chunks release.")
 fi
 test -n "$pr"
 printf 'verified winget PR: %s\n' "$pr"

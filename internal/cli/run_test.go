@@ -35,6 +35,18 @@ func initRepo(t *testing.T) string {
 	return repo
 }
 
+func initUnbornRepo(t *testing.T) string {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	repo := t.TempDir()
+	mustGit(t, repo, "init", "-q", "-b", "main")
+	mustGit(t, repo, "config", "user.name", "test")
+	mustGit(t, repo, "config", "user.email", "test@example.com")
+	return repo
+}
+
 func writeFile(t *testing.T, repo, name string, size int) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(repo, name), bytes.Repeat([]byte("x"), size), 0o644); err != nil {
@@ -170,7 +182,7 @@ func TestRunFailedResumePushCreatesNoCommit(t *testing.T) {
 	mustGit(t, repo, "commit", "-q", "-m", "existing unpushed commit")
 	writeFile(t, repo, "new.txt", 100)
 	hook := filepath.Join(remote, "hooks", "pre-receive")
-	if err := os.WriteFile(hook, []byte("#!/bin/sh\nexit 1\n"), 0o755); err != nil {
+	if err := os.WriteFile(hook, []byte("#!/bin/sh\necho hook-diagnostic >&2\nexit 1\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -221,6 +233,42 @@ func TestRunPushCreatesMissingRemoteBranch(t *testing.T) {
 	}
 	if got := commitCount(t, remote, "new-branch"); got != "2" {
 		t.Fatalf("remote commit count = %s, want 2", got)
+	}
+}
+
+func TestRunRejectsRemoteAheadAndDiverged(t *testing.T) {
+	for _, diverged := range []bool{false, true} {
+		name := "ahead"
+		if diverged {
+			name = "diverged"
+		}
+		t.Run(name, func(t *testing.T) {
+			repo := initRepo(t)
+			remote := t.TempDir()
+			mustGit(t, remote, "init", "-q", "--bare", "-b", "main")
+			mustGit(t, repo, "remote", "add", "origin", remote)
+			mustGit(t, repo, "push", "-q", "origin", "main")
+
+			other := t.TempDir()
+			mustGit(t, other, "clone", "-q", remote, ".")
+			mustGit(t, other, "config", "user.name", "test")
+			mustGit(t, other, "config", "user.email", "test@example.com")
+			writeFile(t, other, "remote.txt", 10)
+			mustGit(t, other, "add", ".")
+			mustGit(t, other, "commit", "-q", "-m", "remote")
+			mustGit(t, other, "push", "-q")
+			if diverged {
+				writeFile(t, repo, "local.txt", 10)
+				mustGit(t, repo, "add", ".")
+				mustGit(t, repo, "commit", "-q", "-m", "local")
+			}
+
+			var out, errOut bytes.Buffer
+			err := Run(Options{Repo: repo, MaxFiles: 1, Message: "chunk", Push: true, Remote: "origin"}, &out, &errOut)
+			if err == nil || !strings.Contains(err.Error(), name) {
+				t.Fatalf("Run() error = %v, want %s error", err, name)
+			}
+		})
 	}
 }
 
@@ -347,6 +395,31 @@ func TestRunRejectsDetachedHEADWithPush(t *testing.T) {
 	}
 }
 
+func TestRunAllowsDetachedHEADWithExplicitBranch(t *testing.T) {
+	repo := initRepo(t)
+	remote := t.TempDir()
+	mustGit(t, remote, "init", "-q", "--bare", "-b", "main")
+	mustGit(t, repo, "remote", "add", "origin", remote)
+	mustGit(t, repo, "checkout", "--detach", "-q")
+	writeFile(t, repo, "new.txt", 10)
+	var out, errOut bytes.Buffer
+	if err := Run(Options{Repo: repo, MaxFiles: 1, Message: "chunk", Push: true, Remote: "origin", Branch: "detached"}, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	if got := commitCount(t, remote, "detached"); got != "2" {
+		t.Fatalf("remote commit count = %s, want 2", got)
+	}
+}
+
+func TestRunDryRunAllowsDetachedHEAD(t *testing.T) {
+	repo := initRepo(t)
+	mustGit(t, repo, "checkout", "--detach", "-q")
+	var out, errOut bytes.Buffer
+	if err := Run(Options{Repo: repo, MaxFiles: 1, DryRun: true, Push: true, Remote: "origin"}, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestRunRejectsAndPreservesStagedChanges(t *testing.T) {
 	repo := initRepo(t)
 	writeFile(t, repo, "a.txt", 10)
@@ -395,6 +468,9 @@ func TestRunRestoresIndexAfterCommitFailure(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "index was restored") {
 		t.Fatalf("Run() error = %v, want restored-index error", err)
 	}
+	if !strings.Contains(err.Error(), "hook-diagnostic") {
+		t.Fatalf("Run() error = %v, want hook diagnostic", err)
+	}
 	if headAfter := mustGit(t, repo, "rev-parse", "HEAD"); headAfter != headBefore {
 		t.Fatalf("HEAD changed from %s to %s", headBefore, headAfter)
 	}
@@ -403,6 +479,65 @@ func TestRunRestoresIndexAfterCommitFailure(t *testing.T) {
 	}
 	if statusAfter := mustGit(t, repo, "status", "--porcelain"); statusAfter != statusBefore {
 		t.Fatalf("working tree changed after failure: got %q, want %q", statusAfter, statusBefore)
+	}
+}
+
+func TestRunRestoresUnbornIndexAfterCommitFailure(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("executable shell hook is not portable to Windows")
+	}
+	repo := initUnbornRepo(t)
+	writeFile(t, repo, "new.txt", 10)
+	hook := filepath.Join(repo, ".git", "hooks", "pre-commit")
+	if err := os.WriteFile(hook, []byte("#!/bin/sh\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	err := Run(Options{Repo: repo, MaxFiles: 1, Message: "chunk"}, &out, &errOut)
+	if err == nil || !strings.Contains(err.Error(), "index was restored") {
+		t.Fatalf("Run() error = %v, want restored-index error", err)
+	}
+	if staged := mustGit(t, repo, "diff", "--cached", "--name-only"); staged != "" {
+		t.Fatalf("index contains staged files after failure: %q", staged)
+	}
+	if status := mustGit(t, repo, "status", "--porcelain"); status != "?? new.txt" {
+		t.Fatalf("working tree changed after failure: %q", status)
+	}
+}
+
+func TestPendingFilesExcludesSymlinkTargetSize(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation commonly requires elevated privileges on Windows")
+	}
+	repo := initRepo(t)
+	writeFile(t, repo, "target", 100)
+	mustGit(t, repo, "add", "target")
+	mustGit(t, repo, "commit", "-q", "-m", "target")
+	if err := os.Symlink("target", filepath.Join(repo, "link")); err != nil {
+		t.Fatal(err)
+	}
+	files, err := pendingFiles(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 || files[0].Path != "link" || files[0].Size != 0 {
+		t.Fatalf("pending files = %#v, want zero-sized link", files)
+	}
+}
+
+func TestTransientPushError(t *testing.T) {
+	for _, test := range []struct {
+		message string
+		want    bool
+	}{
+		{"fatal: unable to access: Failed to connect", true},
+		{"remote: HTTP 503", true},
+		{"rejected: non-fast-forward", false},
+		{"authentication failed", false},
+	} {
+		if got := isTransientPushError(errors.New(test.message)); got != test.want {
+			t.Errorf("isTransientPushError(%q) = %v, want %v", test.message, got, test.want)
+		}
 	}
 }
 

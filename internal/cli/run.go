@@ -98,17 +98,6 @@ func Run(opts Options, stdout, stderr io.Writer) error {
 		return fmt.Errorf("not a git repository: %s", repo)
 	}
 
-	branch := opts.Branch
-	if opts.Push {
-		current, branchErr := currentBranch(repo)
-		if branchErr != nil {
-			return usageError("--push requires an attached HEAD")
-		}
-		if branch == "" {
-			branch = current
-		}
-	}
-
 	files, err := pendingFiles(repo)
 	if err != nil {
 		return err
@@ -116,6 +105,13 @@ func Run(opts Options, stdout, stderr io.Writer) error {
 	if opts.DryRun {
 		chunks := chunkFiles(files, opts.MaxFiles, int64(opts.MaxSize))
 		return printPlan(chunks, opts.JSON, stdout)
+	}
+	branch := opts.Branch
+	if opts.Push && branch == "" {
+		branch, err = currentBranch(repo)
+		if err != nil {
+			return usageError("--push requires an attached HEAD unless --branch is set")
+		}
 	}
 	if len(files) > 0 {
 		staged, err := hasStagedChanges(repo)
@@ -177,7 +173,11 @@ func Run(opts Options, stdout, stderr io.Writer) error {
 }
 
 func restoreIndexAfterFailure(repo string, cause error) error {
-	if _, err := git(repo, "reset", "--mixed", "--quiet", "HEAD"); err != nil {
+	args := []string{"reset", "--mixed", "--quiet", "HEAD"}
+	if !gitSuccess(repo, "rev-parse", "--verify", "HEAD") {
+		args = []string{"read-tree", "--empty"}
+	}
+	if _, err := git(repo, args...); err != nil {
 		return fmt.Errorf("%w; the commit failed and the Git index could not be restored: %v", cause, err)
 	}
 	return fmt.Errorf("%w; the Git index was restored and working-tree changes were preserved", cause)
@@ -207,14 +207,27 @@ func printPlan(chunks [][]File, asJSON bool, out io.Writer) error {
 func pushWithRetry(repo, remote, branch string, retries int, logger *Logger) error {
 	var err error
 	for attempt := 0; ; attempt++ {
-		if _, err = git(repo, "push", remote, "HEAD:"+branch); err == nil {
+		if _, err = git(repo, "push", remote, "HEAD:refs/heads/"+branch); err == nil {
 			return nil
 		}
 		if attempt >= retries {
 			return fmt.Errorf("push failed after %d attempt(s): %w", attempt+1, err)
 		}
+		if !isTransientPushError(err) {
+			return fmt.Errorf("push failed: %w", err)
+		}
 		delay := time.Duration(1<<attempt) * time.Second
 		logger.Error("push failed (attempt %d/%d), retrying in %s: %v", attempt+1, retries+1, delay, err)
 		time.Sleep(delay)
 	}
+}
+
+func isTransientPushError(err error) bool {
+	text := strings.ToLower(err.Error())
+	for _, phrase := range []string{"timed out", "connection reset", "could not resolve host", "failed to connect", "remote end hung up", "unexpected disconnect", "temporarily unavailable", "http 5"} {
+		if strings.Contains(text, phrase) {
+			return true
+		}
+	}
+	return false
 }

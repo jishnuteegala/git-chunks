@@ -24,7 +24,7 @@ on:
         type: string
 
 concurrency:
-  group: publish
+  group: publish-${{ inputs.tag }}
   cancel-in-progress: false
 
 permissions:
@@ -37,6 +37,8 @@ env:
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write
     defaults:
       run:
         shell: bash
@@ -59,18 +61,33 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
-      - name: Build without publishing
-        run: go run github.com/goreleaser/goreleaser/v2@${GORELEASER_VERSION} release --clean --skip=publish,chocolatey
-      - name: Validate artifacts and npm packages
+      - name: Reuse canonical bundle or build it once
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release download "$TAG_NAME" --pattern 'release-bundle.*' --repo "${{ github.repository }}"; then
+            sha256sum --check release-bundle.sha256
+            tar -xzf release-bundle.tar.gz
+          else
+            go run github.com/goreleaser/goreleaser/v2@${GORELEASER_VERSION} release --clean --skip=publish,chocolatey
+            bash scripts/publish-npm.sh "${TAG_NAME#v}" --dry-run
+            node scripts/verify-artifacts.mjs dist/artifacts.json "${TAG_NAME#v}"
+            tar -czf release-bundle.tar.gz dist npm-stage
+            sha256sum release-bundle.tar.gz > release-bundle.sha256
+            gh release upload "$TAG_NAME" release-bundle.tar.gz release-bundle.sha256 --repo "${{ github.repository }}"
+          fi
+      - name: Validate canonical bundle
         run: |
           node scripts/verify-artifacts.mjs dist/artifacts.json "${TAG_NAME#v}"
-          bash scripts/publish-npm.sh "${TAG_NAME#v}" --dry-run
+          test -f npm-stage/packages.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: release-${{ inputs.tag }}
           path: |
             dist
             npm-stage
+            release-bundle.tar.gz
+            release-bundle.sha256
           if-no-files-found: error
           retention-days: 7
 
@@ -92,11 +109,11 @@ jobs:
         run: |
           mapfile -t payloads < <(node scripts/release-payloads.mjs dist/artifacts.json)
           gh release upload "$TAG_NAME" --clobber "${payloads[@]}"
+          payloads+=(release-bundle.tar.gz release-bundle.sha256)
           mapfile -t remote < <(gh release view "$TAG_NAME" --json assets --jq '.assets[].name')
-          for payload in "${payloads[@]}"; do
-            name=$(basename "$payload")
-            printf '%s\n' "${remote[@]}" | grep -Fxq "$name" || { echo "missing GitHub asset: $name" >&2; exit 1; }
-          done
+          mapfile -t expected < <(printf '%s\n' "${payloads[@]}" | xargs -n1 basename | sort)
+          mapfile -t actual < <(printf '%s\n' "${remote[@]}" | sort)
+          diff <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${actual[@]}")
           mkdir remote-assets
           gh release download "$TAG_NAME" --dir remote-assets --pattern 'git-chunks_*' --pattern checksums.txt
           (cd remote-assets && sha256sum --check checksums.txt)
@@ -119,7 +136,7 @@ jobs:
         with:
           name: release-${{ inputs.tag }}
       - run: npm install -g npm@12.0.1
-      - run: bash scripts/publish-npm.sh "${TAG_NAME#v}"
+      - run: bash scripts/publish-npm.sh "${TAG_NAME#v}" --prepared
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

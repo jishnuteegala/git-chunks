@@ -16,8 +16,9 @@ const platforms = [
 const semver = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
 const version = process.argv[2];
 const dryRun = process.argv[3] === "--dry-run";
-if (!version || !semver.test(version) || (process.argv[3] && !dryRun) || process.argv.length > 4) {
-  console.error("usage: publish-npm.sh <SemVer version> [--dry-run]");
+const prepared = process.argv[3] === "--prepared";
+if (!version || !semver.test(version) || (process.argv[3] && !dryRun && !prepared) || process.argv.length > 4) {
+  console.error("usage: publish-npm.sh <SemVer version> [--dry-run|--prepared]");
   process.exit(2);
 }
 
@@ -176,6 +177,19 @@ function preflight(packages) {
     pkg.tarball = join(tarballs, packed.filename);
     if (!existsSync(pkg.tarball)) throw new Error(`missing packed tarball ${pkg.tarball}`);
   }
+  writeFileSync(join(stage, "packages.json"), `${JSON.stringify(packages.map(({ json, packed, tarball }) => ({
+    json, packed: { integrity: packed.integrity, shasum: packed.shasum }, tarball: basename(tarball),
+  })), null, 2)}\n`);
+}
+
+function preparedPackages() {
+  const metadata = join(stage, "packages.json");
+  if (!existsSync(metadata)) throw new Error(`missing prepared package metadata ${metadata}`);
+  return JSON.parse(readFileSync(metadata, "utf8")).map((pkg) => {
+    pkg.tarball = join(tarballs, pkg.tarball);
+    if (!existsSync(pkg.tarball)) throw new Error(`missing prepared tarball ${pkg.tarball}`);
+    return pkg;
+  });
 }
 
 function publish(packages) {
@@ -193,10 +207,12 @@ function publish(packages) {
 }
 
 try {
-  const packages = createPackages();
-  preflight(packages);
-  console.log(`preflight passed for ${packages.length} npm tarballs`);
-  if (!dryRun) publish(packages); else console.log("dry run: nothing published");
+  const packages = prepared ? preparedPackages() : createPackages();
+  if (!prepared) {
+    preflight(packages);
+    console.log(`preflight passed for ${packages.length} npm tarballs`);
+  }
+  if (dryRun) console.log("dry run: nothing published"); else publish(packages);
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   process.exit(1);
