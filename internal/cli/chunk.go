@@ -1,4 +1,4 @@
-package main
+package cli
 
 // File is a pending change in the working tree.
 type File struct {

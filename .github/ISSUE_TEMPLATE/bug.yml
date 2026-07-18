@@ -1,0 +1,50 @@
+name: Bug report
+description: Report reproducible incorrect behavior
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Check existing issues first. For vulnerabilities, use a private security advisory instead.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `git chunks --version`, or the commit SHA.
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Linux, macOS, Windows, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Include the command, expected behavior, actual behavior, and complete error output with secrets removed.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Provide the smallest safe sequence of Git commands that reproduces the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Git version, installation method, remote host, or other relevant details.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I removed credentials and private repository data from this report.
+          required: true
+        - label: I searched for an existing issue.
+          required: true

@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-fe5196?logo=conventionalcommits&logoColor=white)](https://www.conventionalcommits.org)
 
-Split large pushes into chunked commits to beat SCM push size limits and per-push scan timeouts.
+Split large pending changes into chunked commits to reduce push size and per-push scan time.
 
 ## The problem
 
@@ -30,7 +30,7 @@ A single oversized push fails for two distinct reasons:
 
 The workaround is always the same tedious loop: stage some files, commit, push, repeat.
 
-`git-chunks` automates that loop. It splits your pending changes into multiple commits based on criteria you set (max files and/or max size per commit), optionally pushing after each one — so every push stays under the size limit *and* gives server-side scans a small, fast workload. With retries, resume support, and logging.
+`git-chunks` automates that loop. It splits your pending changes into multiple commits based on criteria you set (max files and/or working-tree bytes per commit), optionally pushing after each one. Smaller commits usually reduce each push's pack and server-side scan workload, but the configured size is a planning heuristic, not a hard wire-size guarantee. Server policy findings must be fixed; this tool does not bypass them.
 
 Because the binary is named `git-chunks`, git picks it up automatically as a subcommand: `git chunks`.
 
@@ -57,7 +57,7 @@ choco install git-chunks
 paru -S git-chunks-bin
 
 # Go
-go install github.com/jishnuteegala/git-chunks@latest
+go install github.com/jishnuteegala/git-chunks/cmd/git-chunks@latest
 ```
 
 ### Linux packages
@@ -68,16 +68,34 @@ go install github.com/jishnuteegala/git-chunks@latest
 VERSION=$(curl -s https://api.github.com/repos/jishnuteegala/git-chunks/releases/latest | grep -Po '"tag_name": "v\K[^"]*')
 
 # Debian / Ubuntu
-curl -LO "https://github.com/jishnuteegala/git-chunks/releases/download/v${VERSION}/git-chunk_${VERSION}_linux_amd64.deb"
-sudo dpkg -i "git-chunk_${VERSION}_linux_amd64.deb"
+curl -LO "https://github.com/jishnuteegala/git-chunks/releases/download/v${VERSION}/git-chunks_${VERSION}_linux_amd64.deb"
+sudo dpkg -i "git-chunks_${VERSION}_linux_amd64.deb"
 
 # Fedora / RHEL
-sudo dnf install "https://github.com/jishnuteegala/git-chunks/releases/download/v${VERSION}/git-chunk_${VERSION}_linux_amd64.rpm"
+sudo dnf install "https://github.com/jishnuteegala/git-chunks/releases/download/v${VERSION}/git-chunks_${VERSION}_linux_amd64.rpm"
 ```
 
 `.apk` (Alpine) and `.pkg.tar.zst` (Arch) packages are also attached to each [release](https://github.com/jishnuteegala/git-chunks/releases); Arch users should prefer the AUR package above, which handles updates. Note these manual installs don't auto-update — Homebrew, npm, or the AUR are better if you want upgrades handled for you.
 
-Prebuilt binary archives are also on the Releases page — the build matrix covers linux, macOS (`darwin`), and windows on amd64 + arm64.
+Prebuilt binary archives are also on the Releases page - the build matrix covers Linux, macOS (`darwin`), and Windows on amd64 + arm64. Each release contains these checksummed payloads (replace `${VERSION}` with the release version):
+
+```text
+git-chunks_${VERSION}_linux_amd64.tar.gz
+git-chunks_${VERSION}_linux_arm64.tar.gz
+git-chunks_${VERSION}_darwin_amd64.tar.gz
+git-chunks_${VERSION}_darwin_arm64.tar.gz
+git-chunks_${VERSION}_windows_amd64.zip
+git-chunks_${VERSION}_windows_arm64.zip
+git-chunks_${VERSION}_linux_amd64.deb
+git-chunks_${VERSION}_linux_arm64.deb
+git-chunks_${VERSION}_linux_amd64.rpm
+git-chunks_${VERSION}_linux_arm64.rpm
+git-chunks_${VERSION}_linux_amd64.apk
+git-chunks_${VERSION}_linux_arm64.apk
+git-chunks_${VERSION}_linux_amd64.pkg.tar.zst
+git-chunks_${VERSION}_linux_arm64.pkg.tar.zst
+checksums.txt
+```
 
 ## Usage
 
@@ -101,12 +119,12 @@ git chunks -s 50M -p --log push.log
 | Flag | Description |
 |------|-------------|
 | `-n, --max-files` | Max files per commit |
-| `-s, --max-size` | Max total size per commit (`500K`, `50M`, `1G`) |
+| `-s, --max-size` | Max total on-disk size of regular working-tree files per commit (`500K`, `50M`, `1G`) |
 | `-m, --message` | Commit message prefix (default: `chunk`), suffixed with `(i/total)` |
 | `-p, --push` | Push after each commit |
 | `--remote` | Remote to push to (default: `origin`) |
 | `--branch` | Branch to push (default: current) |
-| `--retries` | Push retry attempts with exponential backoff (default: 3) |
+| `--retries` | Push retry attempts with exponential backoff (default: 3, maximum: 6) |
 | `--dry-run` | Show the chunk plan without committing |
 | `--json` | Output the `--dry-run` plan as JSON |
 | `--log` | Append timestamped progress to a log file |
@@ -118,7 +136,7 @@ At least one of `--max-files` / `--max-size` is required.
 
 ## Usage for AI agents and scripts
 
-`git-chunks` is non-interactive, idempotent, and safe to rerun. The recipe:
+`git-chunks` is non-interactive and can resume after a push failure. The recipe:
 
 ```sh
 # 1. Preview the plan as JSON (stdout; progress goes to stderr)
@@ -129,28 +147,33 @@ git chunks --max-size 50M --push --retries 3 --log git-chunks.log
 ```
 
 - Exit codes: `0` success, `1` runtime error, `2` usage error.
-- If a push fails after retries, committed work is preserved — rerun the exact same command to resume.
+- If a push fails after retries, committed work is preserved. Rerunning first pushes those existing commits, then processes changes still pending.
+- Only run it in a trusted repository: Git hooks and repository configuration execute with your privileges. Remotes and credential helpers must also be trusted.
 - A machine-readable summary of this tool lives in [`llms.txt`](llms.txt).
 
 ## Resumability
 
-`git-chunks` is safe to rerun. Chunks are committed one at a time, so:
+Completed chunks are recoverable after a push failure. Chunks are committed one at a time, so:
 
-- If a push fails (even after retries), committed work is preserved. Rerun the same command — already-committed chunks no longer show as pending, and the unpushed commits ride along with the next push.
-- On resume it tells you: `Resuming: N unpushed commit(s) from a previous run will ride along with the first push.`
+- If a push fails (even after retries), committed work is preserved. Rerun the command; it pushes existing unpushed commits before creating another chunk.
+- If that resume push fails, the command stops without creating an additional commit.
 
 ## Notes
 
 - A single file larger than `--max-size` still gets its own commit — a file can't be split. If it exceeds your platform's hard limit you'll need Git LFS for that file.
-- Untracked files are included; deleted files count as 0 bytes.
-- Sizes are working-tree sizes; git compresses on push, so actual push sizes are usually smaller than the configured cap.
+- Untracked files are included; deleted files count as 0 bytes. Start with an empty Git index: staged changes are rejected before any commit is made.
+- `--max-size` sums current on-disk sizes of regular working-tree files. Deletions, symlinks, submodules, Git history, compression, and protocol overhead are not represented, so actual push size can be higher or lower.
+- Chunking may reduce hook and scan time, but findings from server security or policy checks must be remediated rather than bypassed.
 - Progress goes to stderr; `--dry-run` output goes to stdout (pipe-friendly with `--json`).
 
 ## Development
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and the full
+validation checklist.
+
 ```sh
 go test ./...
-go build
+go build ./cmd/git-chunks
 ```
 
 ## Releasing
@@ -159,14 +182,14 @@ Releases are fully automated with [Conventional Commits](https://www.conventiona
 
 1. Commits to `main` use conventional commit messages (`feat:`, `fix:`, `perf:`, ...)
 2. release-please maintains a release PR with the next semver bump and CHANGELOG
-3. Merging that PR creates the tag + GitHub release, which triggers GoReleaser to:
+3. Merging that PR creates an immutable tag and draft GitHub release, which triggers the publisher to:
    - Build the OS/arch matrix (linux/darwin/windows x amd64/arm64)
    - Attach archives + checksums to the release, with a changelog grouped by type
    - Publish the Homebrew cask to `jishnuteegala/homebrew-tap`
    - Publish the Scoop manifest to `jishnuteegala/scoop-bucket`
    - Open a PR to `microsoft/winget-pkgs` with the winget manifest
    - Publish `git-chunks` + per-platform binary packages to npm
-   - Push the Chocolatey `.nupkg` to chocolatey.org (if `CHOCOLATEY_API_KEY` is set)
+   - Publish the GitHub release only after every required channel verifies
 
 No manual steps between merging and published packages.
 
@@ -177,10 +200,8 @@ Required repo secrets:
 | `PACKAGES_GITHUB_TOKEN` | PAT with write access to the tap + scoop bucket repos |
 | `WINGET_GITHUB_TOKEN` | PAT for the `winget-pkgs` fork used to open PRs to microsoft/winget-pkgs |
 | `NPM_TOKEN` | npm automation token |
-| `CHOCOLATEY_API_KEY` | chocolatey.org API key (optional; step is skipped without it) |
-| `AUR_KEY` | SSH private key for the AUR package repo (optional; skipped without it) |
 
-One-time setup: create `homebrew-tap` and `scoop-bucket` repos, fork `microsoft/winget-pkgs`, and note that the first winget and Chocolatey submissions go through manual moderation before automation flows freely.
+One-time setup: create `homebrew-tap` and `scoop-bucket` repos and fork `microsoft/winget-pkgs`. AUR and Chocolatey are intentionally disabled until they have independent, checksummed, resumable publishers.
 
 ## License
 

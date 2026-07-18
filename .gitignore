@@ -2,3 +2,8 @@ dist/
 npm-stage/
 /git-chunks
 git-chunks.exe
+
+# Local environment files may contain publishing credentials.
+.env
+.env.*
+!.env.example

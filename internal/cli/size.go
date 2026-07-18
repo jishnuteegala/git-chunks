@@ -1,7 +1,8 @@
-package main
+package cli
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -11,11 +12,16 @@ type Size int64
 
 func (s *Size) Set(value string) error {
 	v := strings.ToUpper(strings.TrimSpace(value))
-	v = strings.TrimSuffix(v, "B")
 	if v == "" {
 		return fmt.Errorf("invalid size %q", value)
 	}
+	if strings.HasSuffix(v, "B") {
+		v = strings.TrimSuffix(v, "B")
+	}
 	multiplier := int64(1)
+	if v == "" {
+		return fmt.Errorf("invalid size %q", value)
+	}
 	switch v[len(v)-1] {
 	case 'K':
 		multiplier, v = 1<<10, v[:len(v)-1]
@@ -25,10 +31,14 @@ func (s *Size) Set(value string) error {
 		multiplier, v = 1<<30, v[:len(v)-1]
 	}
 	n, err := strconv.ParseFloat(v, 64)
-	if err != nil || n < 0 {
+	if err != nil || n <= 0 || math.IsNaN(n) || math.IsInf(n, 0) || n >= float64(math.MaxInt64)/float64(multiplier) {
 		return fmt.Errorf("invalid size %q", value)
 	}
-	*s = Size(n * float64(multiplier))
+	bytes := n * float64(multiplier)
+	if bytes < 1 {
+		return fmt.Errorf("invalid size %q", value)
+	}
+	*s = Size(int64(bytes))
 	return nil
 }
 
