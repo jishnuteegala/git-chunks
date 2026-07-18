@@ -210,7 +210,7 @@ Required repo secrets:
 |--------|---------|
 | `PACKAGES_GITHUB_TOKEN` | PAT with write access to the tap + scoop bucket repos |
 | `WINGET_GITHUB_TOKEN` | PAT for the `winget-pkgs` fork used to open PRs to microsoft/winget-pkgs |
-| `NPM_TOKEN` | npm automation token |
+| `NPM_TOKEN` | Temporary npm fallback during migration to trusted publishing |
 | `AUR_KEY` | Unencrypted SSH private key authorized by the AUR account |
 | `CHOCOLATEY_API_KEY` | Chocolatey Community Repository API key |
 
