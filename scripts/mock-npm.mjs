@@ -44,7 +44,7 @@ if (command === "view") {
   const split = spec.lastIndexOf("@");
   const name = spec.slice(0, split);
   const version = spec.slice(split + 1);
-  const existing = state === "complete"
+  const existing = ["complete", "flat"].includes(state)
     || state === "conflict"
     || (state === "partial" && ["git-chunks-linux-x64", "git-chunks-linux-arm64"].includes(name))
     || (() => {
@@ -60,6 +60,11 @@ if (command === "view") {
   }
   const value = metadata(name, version);
   if (state === "conflict" && name === "git-chunks") value.dist.integrity = "sha512-conflict";
+  if (state === "flat") {
+    value["dist.integrity"] = value.dist.integrity;
+    value["dist.shasum"] = value.dist.shasum;
+    delete value.dist;
+  }
   process.stdout.write(JSON.stringify(value));
   process.exit(0);
 }

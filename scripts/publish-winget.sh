@@ -21,12 +21,20 @@ expected=$(git -C "$work/repo" -c http.extraheader="AUTHORIZATION: basic $auth" 
 git -C "$work/repo" -c http.extraheader="AUTHORIZATION: basic $auth" push -q --force-with-lease="refs/heads/$branch:$expected" origin "$branch"
 head=$(git -C "$work/repo" rev-parse HEAD)
 title="New version: jishnuteegala.git-chunks version $version"
-pr=$(gh pr list --repo microsoft/winget-pkgs --head "jishnuteegala:$branch" --state open --json url,headRefOid --jq ".[] | select(.headRefOid == \"$head\") | .url")
+find_pr() {
+  gh pr list --repo microsoft/winget-pkgs --head "jishnuteegala:$branch" --state open --json url,headRefOid --jq ".[] | select(.headRefOid == \"$head\") | .url"
+}
+pr=$(find_pr)
 if [ -z "$pr" ]; then
   pr=$(gh pr list --repo microsoft/winget-pkgs --state merged --search "\"$title\" in:title" --json url,title --jq ".[] | select(.title == \"$title\") | .url" | head -n1)
 fi
 if [ -z "$pr" ]; then
-  pr=$(gh pr create --repo microsoft/winget-pkgs --head "jishnuteegala:$branch" --base master --title "$title" --body "Automated git-chunks release.")
+  gh pr create --repo microsoft/winget-pkgs --head "jishnuteegala:$branch" --base master --title "$title" --body "Automated git-chunks release." >/dev/null 2>&1 || true
+  for delay in 1 2 4 8 15 30; do
+    pr=$(find_pr)
+    [ -n "$pr" ] && break
+    sleep "$delay"
+  done
 fi
 test -n "$pr"
 printf 'verified winget PR: %s\n' "$pr"

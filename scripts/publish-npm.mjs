@@ -76,6 +76,8 @@ function same(value, expected) {
 }
 
 function validateExisting(actual, expected, packed) {
+  const integrity = actual.dist?.integrity ?? actual["dist.integrity"];
+  const shasum = actual.dist?.shasum ?? actual["dist.shasum"];
   const checks = [
     ["name", actual.name, expected.name],
     ["version", actual.version, expected.version],
@@ -85,8 +87,8 @@ function validateExisting(actual, expected, packed) {
     ["cpu", actual.cpu, expected.cpu],
     ["bin", actual.bin, expected.bin],
     ["optionalDependencies", actual.optionalDependencies, expected.optionalDependencies],
-    ["dist.integrity", actual.dist?.integrity, packed.integrity],
-    ["dist.shasum", actual.dist?.shasum, packed.shasum],
+    ["dist.integrity", integrity, packed.integrity],
+    ["dist.shasum", shasum, packed.shasum],
   ];
   const mismatch = checks.find(([, actualValue, expectedValue]) => !same(actualValue, expectedValue));
   if (mismatch) throw new Error(`${expected.name}@${version} exists with unexpected ${mismatch[0]}`);
@@ -201,7 +203,15 @@ function publish(packages) {
     }
     const result = runNpm(["publish", pkg.tarball, "--access", "public"], root);
     if (result.status !== 0) throw new Error((result.stderr || result.stdout || `npm publish failed`).trim());
-    if (!queryExisting(pkg)) throw new Error(`${pkg.json.name}@${version} was not visible after publishing`);
+    let visible = false;
+    for (const delay of [0, 1, 2, 4, 8, 15, 30]) {
+      if (queryExisting(pkg)) {
+        visible = true;
+        break;
+      }
+      if (delay) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delay * 1000);
+    }
+    if (!visible) throw new Error(`${pkg.json.name}@${version} was not visible after publishing`);
     console.log(`published ${pkg.json.name}@${version}`);
   }
 }
