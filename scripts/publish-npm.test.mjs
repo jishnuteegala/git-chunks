@@ -142,6 +142,17 @@ test("prepared mode publishes the exact preflighted tarballs", () => {
   }
 });
 
+test("accepts npm view's flat dist metadata keys", () => {
+  const root = fixture();
+  try {
+    const result = run(root, "flat", "1.2.3");
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(published(root), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("missing and duplicate binaries fail in preflight", () => {
   for (const mutation of ["missing", "duplicate"]) {
     const root = fixture();
