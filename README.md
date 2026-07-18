@@ -3,7 +3,6 @@
 [![CI](https://github.com/jishnuteegala/git-chunks/actions/workflows/ci.yml/badge.svg)](https://github.com/jishnuteegala/git-chunks/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/jishnuteegala/git-chunks?include_prereleases)](https://github.com/jishnuteegala/git-chunks/releases)
 [![Go Reference](https://pkg.go.dev/badge/github.com/jishnuteegala/git-chunks.svg)](https://pkg.go.dev/github.com/jishnuteegala/git-chunks)
-[![Go Report Card](https://goreportcard.com/badge/github.com/jishnuteegala/git-chunks)](https://goreportcard.com/report/github.com/jishnuteegala/git-chunks)
 [![npm](https://img.shields.io/npm/v/git-chunks)](https://www.npmjs.com/package/git-chunks)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-fe5196?logo=conventionalcommits&logoColor=white)](https://www.conventionalcommits.org)
@@ -64,6 +63,21 @@ paru -S git-chunks-bin
 
 # Go
 go install github.com/jishnuteegala/git-chunks/cmd/git-chunks@latest
+
+# Install script (Linux / macOS; installs to ~/.local/bin by default)
+curl -fsSL https://raw.githubusercontent.com/jishnuteegala/git-chunks/main/scripts/install.sh | bash
+```
+
+The install script downloads the appropriate release archive and verifies it
+against the release's `checksums.txt` before installing. Review the script
+before piping it to a shell, or download it and run `sh install.sh`. Set
+`INSTALL_DIR` to choose another destination or pass a version such as
+`curl -fsSL https://raw.githubusercontent.com/jishnuteegala/git-chunks/main/scripts/install.sh | bash -s v0.1.0`.
+`latest` and `stable` both select the latest published release. To remove that
+installation:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/jishnuteegala/git-chunks/main/scripts/uninstall.sh | bash
 ```
 
 The Winget and initial Chocolatey submissions may require community moderation

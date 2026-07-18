@@ -9,7 +9,9 @@
         { "type": "feat", "section": "Features" },
         { "type": "fix", "section": "Bug Fixes" },
         { "type": "perf", "section": "Performance" },
-        { "type": "deps", "section": "Dependencies" }
+        { "type": "docs", "section": "Documentation" },
+        { "type": "build", "section": "Build System and Dependencies" },
+        { "type": "ci", "section": "Continuous Integration" }
       ]
     }
   },

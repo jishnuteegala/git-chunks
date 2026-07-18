@@ -195,13 +195,17 @@ func printPlan(chunks [][]File, asJSON bool, out io.Writer) error {
 	}
 
 	for i, chunk := range chunks {
-		fmt.Fprintf(out, "[%d/%d] %d file(s), %s\n", i+1, len(chunks), len(chunk), formatSize(chunkSize(chunk)))
+		if _, err := fmt.Fprintf(out, "[%d/%d] %d file(s), %s\n", i+1, len(chunks), len(chunk), formatSize(chunkSize(chunk))); err != nil {
+			return err
+		}
 		for _, f := range chunk {
-			fmt.Fprintf(out, "    %s (%s)\n", f.Path, formatSize(f.Size))
+			if _, err := fmt.Fprintf(out, "    %s (%s)\n", f.Path, formatSize(f.Size)); err != nil {
+				return err
+			}
 		}
 	}
-	fmt.Fprintln(out, "Dry run: no commits made.")
-	return nil
+	_, err := fmt.Fprintln(out, "Dry run: no commits made.")
+	return err
 }
 
 func pushWithRetry(repo, remote, branch string, retries int, logger *Logger) error {

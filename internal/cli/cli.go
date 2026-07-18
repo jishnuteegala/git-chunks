@@ -59,17 +59,17 @@ func Main(args []string, stdout, stderr io.Writer, version string) int {
 	}
 
 	if flags.NArg() > 0 {
-		fmt.Fprintf(stderr, "git-chunks: unexpected argument %q\nRun 'git-chunks --help' for usage.\n", flags.Arg(0))
+		_, _ = fmt.Fprintf(stderr, "git-chunks: unexpected argument %q\nRun 'git-chunks --help' for usage.\n", flags.Arg(0))
 		return 2
 	}
 
 	if *showVersion {
-		fmt.Fprintln(stdout, "git-chunks", version)
+		_, _ = fmt.Fprintln(stdout, "git-chunks", version)
 		return 0
 	}
 
 	if err := Run(opts, stdout, stderr); err != nil {
-		fmt.Fprintln(stderr, "git-chunks:", err)
+		_, _ = fmt.Fprintln(stderr, "git-chunks:", err)
 		var usageErr *UsageError
 		if errors.As(err, &usageErr) {
 			return 2
@@ -80,7 +80,7 @@ func Main(args []string, stdout, stderr io.Writer, version string) int {
 }
 
 func usage(out io.Writer, version string) {
-	fmt.Fprintf(out, `git-chunks %s — commit and push changes in chunks
+	_, _ = fmt.Fprintf(out, `git-chunks %s — commit and push changes in chunks
 
 Splits pending changes into multiple commits based on criteria you set,
   optionally pushing after each one. Chunk sizes are planning heuristics, not
