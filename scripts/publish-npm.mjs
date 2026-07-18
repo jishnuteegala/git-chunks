@@ -2,6 +2,7 @@
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { request } from "node:https";
 import { fileURLToPath } from "node:url";
 
 const platforms = [
@@ -94,26 +95,34 @@ function validateExisting(actual, expected, packed) {
   if (mismatch) throw new Error(`${expected.name}@${version} exists with unexpected ${mismatch[0]}`);
 }
 
-function queryExisting(pkg) {
-  const result = runNpm(["view", `${pkg.json.name}@${version}`, "--json"], root);
-  if (result.status === 0) {
-    let actual;
-    try {
-      actual = JSON.parse(result.stdout);
-    } catch {
-      throw new Error(`npm view returned invalid JSON for ${pkg.json.name}@${version}`);
-    }
+async function queryExisting(pkg) {
+  if (process.env.PUBLISH_NPM_REGISTRY_CLI_SCRIPT) {
+    const result = spawnSync(process.execPath, [process.env.PUBLISH_NPM_REGISTRY_CLI_SCRIPT, "registry-view", `${pkg.json.name}@${version}`], {
+      encoding: "utf8", env: process.env,
+    });
+    if (result.status === 1) return false;
+    if (result.status !== 0) throw new Error(result.stderr.trim() || `registry query failed for ${pkg.json.name}`);
+    const actual = JSON.parse(result.stdout);
     validateExisting(actual, pkg.json, pkg.packed);
     return true;
   }
-  let code;
-  try {
-    code = JSON.parse(result.stdout).error?.code;
-  } catch {
-    // npm may write errors to stderr depending on its version.
-  }
-  if (code === "E404" || /E404|404 Not Found/.test(`${result.stdout}\n${result.stderr}`)) return false;
-  throw new Error((result.stderr || result.stdout || `npm view failed for ${pkg.json.name}`).trim());
+  const url = `https://registry.npmjs.org/${encodeURIComponent(pkg.json.name)}/${encodeURIComponent(version)}`;
+  const { status, body } = await new Promise((resolveRequest, reject) => {
+    const req = request(url, { headers: { accept: "application/json" } }, (response) => {
+      let body = "";
+      response.setEncoding("utf8");
+      response.on("data", (chunk) => body += chunk);
+      response.on("end", () => resolveRequest({ status: response.statusCode, body }));
+    });
+    req.on("error", reject);
+    req.end();
+  });
+  if (status === 404) return false;
+  if (status !== 200) throw new Error(`npm registry returned HTTP ${status} for ${pkg.json.name}@${version}`);
+  let actual;
+  try { actual = JSON.parse(body); } catch { throw new Error(`npm registry returned invalid JSON for ${pkg.json.name}@${version}`); }
+  validateExisting(actual, pkg.json, pkg.packed);
+  return true;
 }
 
 function createPackages() {
@@ -189,8 +198,9 @@ function preparedPackages() {
   });
 }
 
-function publish(packages) {
-  const existing = new Map(packages.map((pkg) => [pkg.json.name, queryExisting(pkg)]));
+async function publish(packages) {
+  const existing = new Map();
+  for (const pkg of packages) existing.set(pkg.json.name, await queryExisting(pkg));
   for (const pkg of packages) {
     if (existing.get(pkg.json.name)) {
       console.log(`verified existing ${pkg.json.name}@${version}`);
@@ -200,7 +210,7 @@ function publish(packages) {
     if (result.status !== 0) throw new Error((result.stderr || result.stdout || `npm publish failed`).trim());
     let visible = false;
     for (const delay of [0, 1, 2, 4, 8, 15, 30]) {
-      if (queryExisting(pkg)) {
+      if (await queryExisting(pkg)) {
         visible = true;
         break;
       }
@@ -217,7 +227,7 @@ try {
     preflight(packages);
     console.log(`preflight passed for ${packages.length} npm tarballs`);
   }
-  if (dryRun) console.log("dry run: nothing published"); else publish(packages);
+  if (dryRun) console.log("dry run: nothing published"); else await publish(packages);
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   process.exit(1);

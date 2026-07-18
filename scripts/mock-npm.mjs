@@ -39,7 +39,7 @@ if (command === "pack") {
   process.exit(0);
 }
 
-if (command === "view") {
+if (command === "view" || command === "registry-view") {
   const [spec] = args;
   const split = spec.lastIndexOf("@");
   const name = spec.slice(0, split);

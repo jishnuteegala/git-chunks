@@ -183,6 +183,7 @@ jobs:
       - name: Publish and verify winget PR
         env:
           GH_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
+          PUBLIC_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash scripts/publish-winget.sh "${TAG_NAME#v}"
 
   finalize:
