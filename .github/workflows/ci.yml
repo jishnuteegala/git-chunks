@@ -14,6 +14,7 @@ concurrency:
 
 env:
   ACTIONLINT_VERSION: v1.7.7
+  GOLANGCI_LINT_VERSION: v2.12.2
   GORELEASER_VERSION: v2.17.0
 
 jobs:
@@ -32,6 +33,17 @@ jobs:
           go mod tidy
           git diff --exit-code -- go.mod go.sum
       - run: go vet ./...
+      - name: Lint
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+      - name: Test install scripts
+        run: |
+          install_dir=$(mktemp -d)
+          INSTALL_DIR="$install_dir" sh scripts/install.sh v0.1.0
+          "$install_dir/git-chunks" --version
+          INSTALL_DIR="$install_dir" sh scripts/uninstall.sh
+          test ! -e "$install_dir/git-chunks"
 
   test:
     strategy:
@@ -80,7 +92,9 @@ jobs:
         with:
           node-version: 24
       - name: Test release scripts
-        run: node --test scripts/*.test.mjs
+        run: |
+          node --test scripts/*.test.mjs
+          bash -n scripts/install.sh scripts/uninstall.sh
       - name: Validate workflows
         run: go run github.com/rhysd/actionlint/cmd/actionlint@${ACTIONLINT_VERSION}
       - name: Validate GoReleaser configuration

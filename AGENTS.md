@@ -28,8 +28,17 @@
 ## CI contract
 
 - Third-party actions are pinned to full commit SHAs; the trailing version comments are for Dependabot and human readability.
+- Repository settings allow only GitHub-owned and explicitly approved third-party actions, enforce full-SHA pinning, require approval for every external fork workflow, keep tokens read-only by default, and prevent Actions from approving pull requests.
+- PR CI uses only `pull_request` with no secrets or write permissions. Do not introduce `pull_request_target`, privileged `workflow_run` processing of PR code/artifacts, or self-hosted runners for untrusted changes.
 - Preserve required check names `test (ubuntu-latest)`, `test (macos-latest)`, `test (windows-latest)`, and `release-checks` because branch protection depends on them.
 - Runtime test jobs leave Go caching disabled because this module has no third-party dependencies and compiles quickly. Release jobs enable the Go module/build cache because they compile the pinned GoReleaser module.
+
+## Commit and release-note contract
+
+- Pull requests are squash-merged. Make the PR title the Conventional Commit that should land on `main`; intermediate branch commits do not become release notes.
+- Use `fix:` for a user-visible bug fix (SemVer patch), `feat:` for a feature (SemVer minor), and `type!:` plus a `BREAKING CHANGE:` footer for an incompatible change (SemVer major). Use `docs:`, `build:`, and `ci:` for those release-note sections without implying a feature or fix.
+- Prefer one independently releasable change per PR. If a PR must contain multiple user-visible fixes or features, put each additional complete Conventional Commit message as raw text at the absolute bottom of the PR body. This repository uses the PR body as the squash commit body; do not wrap the messages in a code fence or put validation, links, or other text after them. Before merging, verify the squash dialog preserves this ordering so Release Please emits each entry.
+- Keep implementation-only corrections made within the same PR out of the final release message. Use a `Release-As: x.y.z` footer only for an intentional version override.
 
 ## Project skills
 

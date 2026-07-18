@@ -29,7 +29,7 @@ func NewLogger(console io.Writer, logPath string, quiet bool) (*Logger, error) {
 
 func (l *Logger) Close() {
 	if l.file != nil {
-		l.file.Close()
+		_ = l.file.Close()
 	}
 }
 
@@ -38,7 +38,7 @@ func (l *Logger) Close() {
 func (l *Logger) Progress(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if !l.quiet {
-		fmt.Fprintln(l.console, msg)
+		_, _ = fmt.Fprintln(l.console, msg)
 	}
 	l.toFile(msg)
 }
@@ -46,12 +46,12 @@ func (l *Logger) Progress(format string, args ...any) {
 // Error reports a failure; never suppressed on the console.
 func (l *Logger) Error(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintln(l.console, msg)
+	_, _ = fmt.Fprintln(l.console, msg)
 	l.toFile("ERROR: " + msg)
 }
 
 func (l *Logger) toFile(msg string) {
 	if l.file != nil {
-		fmt.Fprintf(l.file, "%s %s\n", time.Now().Format(time.RFC3339), msg)
+		_, _ = fmt.Fprintf(l.file, "%s %s\n", time.Now().Format(time.RFC3339), msg)
 	}
 }

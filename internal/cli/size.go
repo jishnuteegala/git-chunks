@@ -15,9 +15,7 @@ func (s *Size) Set(value string) error {
 	if v == "" {
 		return fmt.Errorf("invalid size %q", value)
 	}
-	if strings.HasSuffix(v, "B") {
-		v = strings.TrimSuffix(v, "B")
-	}
+	v = strings.TrimSuffix(v, "B")
 	multiplier := int64(1)
 	if v == "" {
 		return fmt.Errorf("invalid size %q", value)

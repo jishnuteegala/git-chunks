@@ -59,14 +59,21 @@ changelog:
     - title: Performance
       regexp: '^perf(\(.*\))?!?:'
       order: 2
-    - title: Other
+    - title: Documentation
+      regexp: '^docs(\(.*\))?!?:'
+      order: 3
+    - title: Build System and Dependencies
+      regexp: '^build(\(.*\))?!?:'
+      order: 4
+    - title: Continuous Integration
+      regexp: '^ci(\(.*\))?!?:'
+      order: 5
+    - title: Other Changes
       order: 999
   filters:
     exclude:
-      - "^docs:"
       - "^test:"
       - "^chore:"
-      - "^ci:"
       - "^style:"
       - "^refactor:"
 

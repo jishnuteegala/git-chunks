@@ -170,8 +170,14 @@ credential at its provider.
 ## Repository controls
 
 - Keep default workflow permissions read-only.
+- Prevent Actions from approving pull requests.
+- Require maintainer approval before workflows from any external fork run.
 - Require `test (ubuntu-latest)`, `test (macos-latest)`,
   `test (windows-latest)`, and `release-checks` on `main`.
 - Protect immutable `v*` tags.
-- Restrict Actions to full-SHA-pinned actions.
+- Allow only GitHub-owned actions and explicitly approved third-party actions,
+  and enforce full-SHA pinning in repository settings.
+- Keep PR CI on `pull_request` with read-only permissions and no secrets. Never
+  check out fork code from `pull_request_target` or a privileged `workflow_run`.
+- Keep CodeQL default setup enabled for Go, JavaScript/TypeScript, and Actions.
 - Keep publishing credentials in GitHub Actions secrets, never in this file.

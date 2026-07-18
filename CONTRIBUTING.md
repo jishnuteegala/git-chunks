@@ -38,12 +38,22 @@ from a contribution branch.
 
 ## Commits and pull requests
 
-- Use [Conventional Commits](https://www.conventionalcommits.org), such as
-  `fix: preserve the index after a failed commit`.
+- Use [Conventional Commits](https://www.conventionalcommits.org): `fix:`
+  produces a patch release, `feat:` produces a minor release, and a `!` plus a
+  `BREAKING CHANGE:` footer produces a major release. Use `docs:`, `build:`, or
+  `ci:` when those more accurately describe the release note.
 - Keep unrelated changes in separate pull requests.
 - Explain the problem, the chosen solution, and how it was tested.
 - Update documentation when behavior or user-facing output changes.
 - Resolve review conversations and keep required checks green.
 
 Pull requests are squash-merged, so the PR title must also be a valid
-Conventional Commit message.
+Conventional Commit message and should describe the change users will see on
+`main`, not an implementation step. Prefer one independently releasable change
+per pull request. If one pull request necessarily contains multiple fixes or
+features, add each extra complete Conventional Commit message at the bottom of
+the pull request body as raw text, outside a Markdown code fence, with no
+validation results or other content after it. GitHub uses the pull request body
+as the squash commit body in this repository. Before merging, verify the squash
+dialog still ends with those messages, as required by
+[Release Please](https://github.com/googleapis/release-please#what-if-my-pr-contains-multiple-fixes-or-features).
