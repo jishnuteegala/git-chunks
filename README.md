@@ -37,8 +37,14 @@ Because the binary is named `git-chunks`, git picks it up automatically as a sub
 ## Install
 
 ```sh
-# npm / bun / pnpm
+# npm
 npm install -g git-chunks
+
+# Bun
+bun add -g git-chunks
+
+# pnpm
+pnpm add -g git-chunks
 
 # Homebrew (macOS / Linux)
 brew install jishnuteegala/tap/git-chunks
@@ -50,7 +56,7 @@ winget install jishnuteegala.git-chunks
 scoop bucket add jishnuteegala https://github.com/jishnuteegala/scoop-bucket
 scoop install git-chunks
 
-# Chocolatey (Windows)
+# Chocolatey (Windows; available after community moderation)
 choco install git-chunks
 
 # AUR (Arch Linux)
@@ -59,6 +65,9 @@ paru -S git-chunks-bin
 # Go
 go install github.com/jishnuteegala/git-chunks/cmd/git-chunks@latest
 ```
+
+The Winget and initial Chocolatey submissions may require community moderation
+before their install commands become available.
 
 ### Linux packages
 
@@ -75,7 +84,7 @@ sudo dpkg -i "git-chunks_${VERSION}_linux_amd64.deb"
 sudo dnf install "https://github.com/jishnuteegala/git-chunks/releases/download/v${VERSION}/git-chunks_${VERSION}_linux_amd64.rpm"
 ```
 
-`.apk` (Alpine) and `.pkg.tar.zst` (Arch) packages are also attached to each [release](https://github.com/jishnuteegala/git-chunks/releases); Arch users should prefer the AUR package above, which handles updates. Note these manual installs don't auto-update — Homebrew, npm, or the AUR are better if you want upgrades handled for you.
+`.apk` (Alpine) and `.pkg.tar.zst` (Arch) packages are also attached to each [release](https://github.com/jishnuteegala/git-chunks/releases); Arch users can use the AUR package for managed updates. These manual installs don't auto-update.
 
 Prebuilt binary archives are also on the Releases page - the build matrix covers Linux, macOS (`darwin`), and Windows on amd64 + arm64. Each release contains these checksummed payloads (replace `${VERSION}` with the release version):
 
@@ -189,6 +198,8 @@ Releases are fully automated with [Conventional Commits](https://www.conventiona
    - Publish the Scoop manifest to `jishnuteegala/scoop-bucket`
    - Publish `git-chunks` + per-platform binary packages to npm
    - Publish the GitHub release after its directly controlled channels verify
+   - Publish and verify the AUR package
+   - Submit the Chocolatey package and verify it once moderation makes it public
    - Open and verify a PR to `microsoft/winget-pkgs` after release assets are public
 
 No manual steps between merging and published packages.
@@ -200,8 +211,10 @@ Required repo secrets:
 | `PACKAGES_GITHUB_TOKEN` | PAT with write access to the tap + scoop bucket repos |
 | `WINGET_GITHUB_TOKEN` | PAT for the `winget-pkgs` fork used to open PRs to microsoft/winget-pkgs |
 | `NPM_TOKEN` | npm automation token |
+| `AUR_KEY` | Unencrypted SSH private key authorized by the AUR account |
+| `CHOCOLATEY_API_KEY` | Chocolatey Community Repository API key |
 
-One-time setup: create `homebrew-tap` and `scoop-bucket` repos and fork `microsoft/winget-pkgs`. AUR and Chocolatey are intentionally disabled until they have independent, checksummed, resumable publishers.
+One-time setup: create `homebrew-tap` and `scoop-bucket` repos, fork `microsoft/winget-pkgs`, authorize the AUR SSH key, and create a Chocolatey API key. First-time Winget and Chocolatey submissions are externally moderated.
 
 ## License
 

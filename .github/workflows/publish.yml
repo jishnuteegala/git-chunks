@@ -16,6 +16,10 @@ on:
         required: true
       WINGET_GITHUB_TOKEN:
         required: true
+      AUR_KEY:
+        required: true
+      CHOCOLATEY_API_KEY:
+        required: true
   workflow_dispatch:
     inputs:
       tag:
@@ -37,6 +41,7 @@ env:
 jobs:
   build:
     runs-on: windows-latest
+    timeout-minutes: 30
     permissions:
       contents: write
     defaults:
@@ -52,12 +57,18 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
-          ref: refs/tags/${{ inputs.tag }}
-      - name: Verify exact tag checkout
-        run: test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/$TAG_NAME^{commit}")"
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || format('refs/tags/{0}', inputs.tag) }}
+      - name: Verify release source
+        run: |
+          git rev-parse "refs/tags/$TAG_NAME^{commit}" >/dev/null
+          if [[ "${{ github.event_name }}" != workflow_dispatch ]]; then
+            test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/$TAG_NAME^{commit}")"
+          fi
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.mod
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
@@ -69,8 +80,13 @@ jobs:
             sha256sum --check release-bundle.sha256
             tar -xzf release-bundle.tar.gz
           else
+            if [[ "${{ github.event_name }}" == workflow_dispatch ]]; then
+              echo "recovery requires the canonical bundle stored by the original release" >&2
+              exit 1
+            fi
             go run github.com/goreleaser/goreleaser/v2@${GORELEASER_VERSION} release --clean --skip=publish,chocolatey
             bash scripts/publish-npm.sh "${TAG_NAME#v}" --dry-run
+            powershell.exe -NoProfile -File scripts/package-chocolatey.ps1 -Version "${TAG_NAME#v}"
             node scripts/verify-artifacts.mjs dist/artifacts.json "${TAG_NAME#v}"
             tar -czf release-bundle.tar.gz dist npm-stage
             sha256sum release-bundle.tar.gz > release-bundle.sha256
@@ -94,6 +110,7 @@ jobs:
   github:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
@@ -121,6 +138,7 @@ jobs:
   npm:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       id-token: write
@@ -143,6 +161,7 @@ jobs:
   homebrew:
     needs: [build, github]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -158,6 +177,7 @@ jobs:
   scoop:
     needs: [build, github]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -173,6 +193,7 @@ jobs:
   winget:
     needs: [build, finalize]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -186,9 +207,47 @@ jobs:
           PUBLIC_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash scripts/publish-winget.sh "${TAG_NAME#v}"
 
+  aur:
+    needs: [build, finalize]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || format('refs/tags/{0}', inputs.tag) }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-${{ inputs.tag }}
+      - name: Publish and verify AUR package
+        env:
+          AUR_KEY: ${{ secrets.AUR_KEY }}
+        run: bash scripts/publish-aur.sh "${TAG_NAME#v}"
+
+  chocolatey:
+    needs: [build, finalize]
+    runs-on: windows-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || format('refs/tags/{0}', inputs.tag) }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-${{ inputs.tag }}
+      - name: Publish and verify Chocolatey submission
+        env:
+          CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}
+        run: |
+          $version = $env:TAG_NAME.TrimStart('v')
+          ./scripts/publish-chocolatey.ps1 -Version $version
+
   finalize:
     needs: [github, npm, homebrew, scoop]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: write
     steps:

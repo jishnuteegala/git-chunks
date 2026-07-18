@@ -112,6 +112,8 @@ aurs:
     maintainers:
       - Jishnu Teegala <134275562+jishnuteegala@users.noreply.github.com>
     license: MIT
+    depends:
+      - git
     git_url: ssh://aur@aur.archlinux.org/git-chunks-bin.git
     private_key: '{{ envOrDefault "AUR_KEY" "" }}'
     skip_upload: '{{ if index .Env "AUR_KEY" }}false{{ else }}true{{ end }}'
@@ -149,24 +151,3 @@ winget:
           owner: microsoft
           name: winget-pkgs
           branch: master
-
-chocolateys:
-  - name: git-chunks
-    title: git-chunks
-    authors: Jishnu Teegala
-    owners: Jishnu Teegala
-    project_url: https://github.com/jishnuteegala/git-chunks
-    project_source_url: https://github.com/jishnuteegala/git-chunks
-    package_source_url: https://github.com/jishnuteegala/git-chunks
-    docs_url: https://github.com/jishnuteegala/git-chunks/blob/main/README.md
-    bug_tracker_url: https://github.com/jishnuteegala/git-chunks/issues
-    license_url: https://github.com/jishnuteegala/git-chunks/blob/main/LICENSE
-    require_license_acceptance: false
-    summary: Commit and push changes in chunks to avoid SCM push size limits
-    description: |
-      git-chunks splits pending changes into multiple commits based on
-      criteria you set (max files, max size per commit), optionally pushing
-      after each one to reduce push size and per-push server workload.
-    release_notes: "https://github.com/jishnuteegala/git-chunks/releases/tag/v{{ .Version }}"
-    tags: "git cli push chunk"
-    skip_publish: true
