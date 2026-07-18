@@ -37,7 +37,7 @@
 
 - Pull requests are squash-merged. Make the PR title the Conventional Commit that should land on `main`; intermediate branch commits do not become release notes.
 - Use `fix:` for a user-visible bug fix (SemVer patch), `feat:` for a feature (SemVer minor), and `type!:` plus a `BREAKING CHANGE:` footer for an incompatible change (SemVer major). Use `docs:`, `build:`, and `ci:` for those release-note sections without implying a feature or fix.
-- Prefer one independently releasable change per PR. If a PR must contain multiple user-visible fixes or features, put additional complete Conventional Commit messages at the bottom of the squash commit body so Release Please emits each entry; do not flatten them into an inaccurate title.
+- Prefer one independently releasable change per PR. If a PR must contain multiple user-visible fixes or features, put each additional complete Conventional Commit message as raw text at the absolute bottom of the PR body. This repository uses the PR body as the squash commit body; do not wrap the messages in a code fence or put validation, links, or other text after them. Before merging, verify the squash dialog preserves this ordering so Release Please emits each entry.
 - Keep implementation-only corrections made within the same PR out of the final release message. Use a `Release-As: x.y.z` footer only for an intentional version override.
 
 ## Project skills

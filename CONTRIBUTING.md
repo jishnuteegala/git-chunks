@@ -52,5 +52,8 @@ Conventional Commit message and should describe the change users will see on
 `main`, not an implementation step. Prefer one independently releasable change
 per pull request. If one pull request necessarily contains multiple fixes or
 features, add each extra complete Conventional Commit message at the bottom of
-the squash commit body as described by
+the pull request body as raw text, outside a Markdown code fence, with no
+validation results or other content after it. GitHub uses the pull request body
+as the squash commit body in this repository. Before merging, verify the squash
+dialog still ends with those messages, as required by
 [Release Please](https://github.com/googleapis/release-please#what-if-my-pr-contains-multiple-fixes-or-features).
