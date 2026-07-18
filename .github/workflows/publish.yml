@@ -1,7 +1,7 @@
 name: Publish existing tag
 
-# Recovery: Actions -> Publish existing tag -> Run workflow, then enter an
-# existing immutable v* tag. Successful channels are verified and skipped.
+# Recovery: Actions -> Release -> Run workflow, then enter an existing
+# immutable v* tag. Successful channels are verified and skipped.
 on:
   workflow_call:
     inputs:
@@ -20,13 +20,6 @@ on:
         required: true
       CHOCOLATEY_API_KEY:
         required: true
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Existing immutable v* tag to retry
-        required: true
-        type: string
-
 concurrency:
   group: publish-${{ inputs.tag }}
   cancel-in-progress: false
