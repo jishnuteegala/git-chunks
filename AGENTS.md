@@ -25,6 +25,12 @@
 - AUR publishes generated `PKGBUILD` and `.SRCINFO` files after the release is public, then verifies the exact remote Git tree. Chocolatey packages reference the canonical Windows archives and verify their SHA256 values; an accepted first submission remains unavailable until community moderation completes.
 - Release tags are immutable `v*` SemVer tags. A release retry must reuse and verify `release-bundle.tar.gz`; it must not rebuild a different bundle.
 
+## CI contract
+
+- Third-party actions are pinned to full commit SHAs; the trailing version comments are for Dependabot and human readability.
+- Preserve required check names `test (ubuntu-latest)`, `test (macos-latest)`, `test (windows-latest)`, and `release-checks` because branch protection depends on them.
+- Runtime test jobs leave Go caching disabled because this module has no third-party dependencies and compiles quickly. Release jobs enable the Go module/build cache because they compile the pinned GoReleaser module.
+
 ## Project skills
 
 - Use `.agents/skills/develop-git-chunks/SKILL.md` for CLI behavior, Git integration, or platform-sensitive runtime changes.

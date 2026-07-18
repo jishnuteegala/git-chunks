@@ -8,51 +8,89 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ACTIONLINT_VERSION: v1.7.7
+  GORELEASER_VERSION: v2.17.0
+
 jobs:
-  test:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: false
+      - name: Verify formatting and module files
+        run: |
+          test -z "$(gofmt -l cmd internal)"
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
       - run: go vet ./...
-      - run: go test ./...
-      - run: go build ./cmd/git-chunks
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          # There are no third-party runtime modules; cross-OS caches cost more
+          # to restore/save than this package takes to compile.
+          cache: false
+      - name: Test and build
+        run: |
+          go vet ./...
+          go test ./...
+          go build ./cmd/git-chunks
 
   release-checks:
+    needs: quality
+    if: ${{ always() }}
     runs-on: windows-latest
+    timeout-minutes: 15
     defaults:
       run:
         shell: bash
     steps:
+      - name: Require quality checks
+        if: ${{ needs.quality.result != 'success' }}
+        run: exit 1
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
-          cache: false
+          # This job downloads the pinned GoReleaser module, so its module and
+          # build caches materially reduce repeat snapshot time.
+          cache: true
+          cache-dependency-path: go.mod
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
-      - name: Verify module files are tidy
-        shell: bash
-        run: |
-          go mod tidy
-          git diff --exit-code -- go.mod go.sum
-      - run: node --test scripts/*.test.mjs
-      - run: go run github.com/goreleaser/goreleaser/v2@v2.17.0 check
+      - name: Test release scripts
+        run: node --test scripts/*.test.mjs
+      - name: Validate workflows
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@${ACTIONLINT_VERSION}
+      - name: Validate GoReleaser configuration
+        run: go run github.com/goreleaser/goreleaser/v2@${GORELEASER_VERSION} check
       - name: Build and verify release snapshot
-        shell: bash
         run: |
-          go run github.com/goreleaser/goreleaser/v2@v2.17.0 release --snapshot --clean --skip=chocolatey
+          go run github.com/goreleaser/goreleaser/v2@${GORELEASER_VERSION} release --snapshot --clean --skip=chocolatey
           VERSION=$(node -e 'const m=require("./dist/metadata.json"); process.stdout.write(m.version)')
           node scripts/verify-artifacts.mjs dist/artifacts.json "$VERSION"
           bash scripts/publish-npm.sh "$VERSION" --dry-run
           powershell.exe -NoProfile -File scripts/package-chocolatey.ps1 -Version "$VERSION"
-      - run: git diff --exit-code
+      - name: Verify generated checks do not modify source
+        run: git diff --exit-code
