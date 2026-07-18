@@ -460,7 +460,7 @@ func TestRunRestoresIndexAfterCommitFailure(t *testing.T) {
 	headBefore := mustGit(t, repo, "rev-parse", "HEAD")
 
 	hook := filepath.Join(repo, ".git", "hooks", "pre-commit")
-	if err := os.WriteFile(hook, []byte("#!/bin/sh\nexit 1\n"), 0o755); err != nil {
+	if err := os.WriteFile(hook, []byte("#!/bin/sh\necho hook-diagnostic >&2\nexit 1\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	var out, errOut bytes.Buffer
