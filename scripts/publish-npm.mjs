@@ -95,12 +95,7 @@ function validateExisting(actual, expected, packed) {
 }
 
 function queryExisting(pkg) {
-  const result = runNpm([
-    "view",
-    `${pkg.json.name}@${version}`,
-    "name", "version", "description", "license", "os", "cpu", "bin", "optionalDependencies",
-    "dist.integrity", "dist.shasum", "--json",
-  ], root);
+  const result = runNpm(["view", `${pkg.json.name}@${version}`, "--json"], root);
   if (result.status === 0) {
     let actual;
     try {
