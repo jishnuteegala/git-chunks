@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/jishnuteegala/git-chunks/security/advisories/new
+    about: Report vulnerabilities privately. Do not open a public issue.
+  - name: Usage question
+    url: https://github.com/jishnuteegala/git-chunks/discussions/new?category=q-a
+    about: Ask for help using git-chunks.

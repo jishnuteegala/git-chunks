@@ -168,6 +168,9 @@ Completed chunks are recoverable after a push failure. Chunks are committed one 
 
 ## Development
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and the full
+validation checklist.
+
 ```sh
 go test ./...
 go build ./cmd/git-chunks
