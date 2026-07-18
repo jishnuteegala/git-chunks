@@ -1,4 +1,4 @@
-package main
+package cli
 
 import "testing"
 
@@ -86,5 +86,16 @@ func TestParseSize(t *testing.T) {
 	var s Size
 	if err := s.Set("abc"); err == nil {
 		t.Fatal("Set(abc) should fail")
+	}
+}
+
+func TestParseSizeRejectsInvalidValues(t *testing.T) {
+	for _, input := range []string{"", "0", "-1", "NaN", "Inf", "+Inf", "1T", "1MiB", "0.5", "9223372036854775808", "9GGB"} {
+		t.Run(input, func(t *testing.T) {
+			var s Size
+			if err := s.Set(input); err == nil {
+				t.Fatalf("Set(%q) should fail", input)
+			}
+		})
 	}
 }

@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ type Logger struct {
 func NewLogger(console io.Writer, logPath string, quiet bool) (*Logger, error) {
 	l := &Logger{console: console, quiet: quiet}
 	if logPath != "" {
-		f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+		f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 		if err != nil {
 			return nil, fmt.Errorf("cannot open log file: %w", err)
 		}

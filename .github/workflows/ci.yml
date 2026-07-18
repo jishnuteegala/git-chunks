@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     strategy:
@@ -12,10 +15,43 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
+          cache: false
       - run: go vet ./...
       - run: go test ./...
-      - run: go build ./...
+      - run: go build ./cmd/git-chunks
+
+  release-checks:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - name: Verify module files are tidy
+        shell: bash
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+      - run: node --test scripts/*.test.mjs
+      - run: go run github.com/goreleaser/goreleaser/v2@v2.17.0 check
+      - name: Build and verify release snapshot
+        shell: bash
+        run: |
+          go run github.com/goreleaser/goreleaser/v2@v2.17.0 release --snapshot --clean
+          VERSION=$(node -e 'const m=require("./dist/metadata.json"); process.stdout.write(m.version)')
+          node scripts/verify-artifacts.mjs dist/artifacts.json "$VERSION"
+          bash scripts/publish-npm.sh "$VERSION" --dry-run
+      - run: git diff --exit-code

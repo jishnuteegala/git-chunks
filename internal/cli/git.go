@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"fmt"
@@ -20,7 +20,7 @@ func gitRaw(repo string, args ...string) (string, error) {
 	cmd.Dir = repo
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("git %s: %s", strings.Join(args, " "), strings.TrimSpace(string(out)))
+		return "", fmt.Errorf("git command failed: %w", err)
 	}
 	return string(out), nil
 }
@@ -57,6 +57,27 @@ func pendingFiles(repo string) ([]File, error) {
 	return files, nil
 }
 
+func hasStagedChanges(repo string) (bool, error) {
+	out, err := gitRaw(repo, "diff", "--cached", "--name-only", "-z")
+	if err != nil {
+		return false, err
+	}
+	return out != "", nil
+}
+
+func hasUnpushedCommits(repo, remote, branch string) (bool, error) {
+	head, err := git(repo, "rev-parse", "HEAD")
+	if err != nil {
+		return false, err
+	}
+	out, err := git(repo, "ls-remote", "--heads", remote, "refs/heads/"+branch)
+	if err != nil {
+		return false, err
+	}
+	fields := strings.Fields(out)
+	return len(fields) == 0 || fields[0] != head, nil
+}
+
 func currentBranch(repo string) (string, error) {
-	return git(repo, "rev-parse", "--abbrev-ref", "HEAD")
+	return git(repo, "symbolic-ref", "--quiet", "--short", "HEAD")
 }

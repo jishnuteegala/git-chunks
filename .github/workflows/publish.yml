@@ -1,0 +1,180 @@
+name: Publish existing tag
+
+# Recovery: Actions -> Publish existing tag -> Run workflow, then enter an
+# existing immutable v* tag. Successful channels are verified and skipped.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Existing immutable release tag
+        required: true
+        type: string
+    secrets:
+      NPM_TOKEN:
+        required: false
+      PACKAGES_GITHUB_TOKEN:
+        required: true
+      WINGET_GITHUB_TOKEN:
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing immutable v* tag to retry
+        required: true
+        type: string
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  TAG_NAME: ${{ inputs.tag }}
+  GORELEASER_VERSION: v2.17.0
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Validate release tag
+        run: |
+          VERSION="${TAG_NAME#v}" node -e '
+            const semver = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
+            if (!process.env.TAG_NAME.startsWith("v") || !semver.test(process.env.VERSION)) process.exit(2);
+          '
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          ref: refs/tags/${{ inputs.tag }}
+      - name: Verify exact tag checkout
+        run: test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/$TAG_NAME^{commit}")"
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - name: Build without publishing
+        run: go run github.com/goreleaser/goreleaser/v2@${GORELEASER_VERSION} release --clean --skip=publish,chocolatey
+      - name: Validate artifacts and npm packages
+        run: |
+          node scripts/verify-artifacts.mjs dist/artifacts.json "${TAG_NAME#v}"
+          bash scripts/publish-npm.sh "${TAG_NAME#v}" --dry-run
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-${{ inputs.tag }}
+          path: |
+            dist
+            npm-stage
+          if-no-files-found: error
+          retention-days: 7
+
+  github:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-${{ inputs.tag }}
+      - name: Upload and verify GitHub assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mapfile -t payloads < <(node scripts/release-payloads.mjs dist/artifacts.json)
+          gh release upload "$TAG_NAME" --clobber "${payloads[@]}"
+          mapfile -t remote < <(gh release view "$TAG_NAME" --json assets --jq '.assets[].name')
+          for payload in "${payloads[@]}"; do
+            name=$(basename "$payload")
+            printf '%s\n' "${remote[@]}" | grep -Fxq "$name" || { echo "missing GitHub asset: $name" >&2; exit 1; }
+          done
+          mkdir remote-assets
+          gh release download "$TAG_NAME" --dir remote-assets --pattern 'git-chunks_*' --pattern checksums.txt
+          (cd remote-assets && sha256sum --check checksums.txt)
+
+  npm:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-${{ inputs.tag }}
+      - run: npm install -g npm@12.0.1
+      - run: bash scripts/publish-npm.sh "${TAG_NAME#v}"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  homebrew:
+    needs: [build, github]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-${{ inputs.tag }}
+      - name: Publish and verify Homebrew cask
+        env:
+          PACKAGES_GITHUB_TOKEN: ${{ secrets.PACKAGES_GITHUB_TOKEN }}
+        run: bash scripts/publish-git-manifest.sh jishnuteegala/homebrew-tap dist/homebrew/Casks/git-chunks.rb Casks/git-chunks.rb "$TAG_NAME"
+
+  scoop:
+    needs: [build, github]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-${{ inputs.tag }}
+      - name: Publish and verify Scoop manifest
+        env:
+          PACKAGES_GITHUB_TOKEN: ${{ secrets.PACKAGES_GITHUB_TOKEN }}
+        run: bash scripts/publish-git-manifest.sh jishnuteegala/scoop-bucket dist/scoop/git-chunks.json bucket/git-chunks.json "$TAG_NAME"
+
+  winget:
+    needs: [build, github]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-${{ inputs.tag }}
+      - name: Publish and verify winget PR
+        env:
+          GH_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
+        run: bash scripts/publish-winget.sh "${TAG_NAME#v}"
+
+  finalize:
+    needs: [github, npm, homebrew, scoop, winget]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish completed release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$TAG_NAME" --repo "${{ github.repository }}" --draft=false

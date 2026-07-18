@@ -2,12 +2,9 @@ version: 2
 
 project_name: git-chunks
 
-before:
-  hooks:
-    - go mod tidy
-
 builds:
   - id: git-chunks
+    main: ./cmd/git-chunks
     binary: git-chunks
     env:
       - CGO_ENABLED=0
@@ -75,6 +72,9 @@ changelog:
 
 release:
   mode: keep-existing
+  draft: true
+  use_existing_draft: true
+  replace_existing_artifacts: true
   github:
     owner: jishnuteegala
     name: git-chunks
@@ -166,7 +166,7 @@ chocolateys:
     description: |
       git-chunks splits pending changes into multiple commits based on
       criteria you set (max files, max size per commit), optionally pushing
-      after each one so every push stays under SCM platform size limits.
+      after each one to reduce push size and per-push server workload.
     release_notes: "https://github.com/jishnuteegala/git-chunks/releases/tag/v{{ .Version }}"
     tags: "git cli push chunk"
     skip_publish: true
