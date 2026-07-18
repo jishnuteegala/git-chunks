@@ -26,12 +26,12 @@ git -C "$work/repo" -c http.extraheader="AUTHORIZATION: basic $auth" push -q --f
 head=$(git -C "$work/repo" rev-parse HEAD)
 title="New version: jishnuteegala.git-chunks version $version"
 find_pr() {
-  curl -fsSL "https://api.github.com/repos/microsoft/winget-pkgs/pulls?state=open&head=jishnuteegala:$branch" |
+  curl -fsSL -H "Authorization: Bearer $PUBLIC_GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/microsoft/winget-pkgs/pulls?state=open&head=jishnuteegala:$branch" |
     node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const h=process.argv[1];const p=JSON.parse(s).find(x=>x.head.sha===h);if(p)process.stdout.write(p.html_url)})' "$head"
 }
 pr=$(find_pr)
 if [ -z "$pr" ]; then
-  pr=$(curl -fsSL "https://api.github.com/repos/microsoft/winget-pkgs/pulls?state=closed&head=jishnuteegala:$branch" |
+  pr=$(curl -fsSL -H "Authorization: Bearer $PUBLIC_GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/microsoft/winget-pkgs/pulls?state=closed&head=jishnuteegala:$branch" |
     node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const t=process.argv[1];const p=JSON.parse(s).find(x=>x.merged_at&&x.title===t);if(p)process.stdout.write(p.html_url)})' "$title")
 fi
 if [ -z "$pr" ]; then

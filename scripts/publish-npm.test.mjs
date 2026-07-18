@@ -49,6 +49,7 @@ function run(root, state, ...args) {
       PUBLISH_NPM_ROOT: root,
       PUBLISH_NPM_CLI: process.execPath,
       PUBLISH_NPM_CLI_SCRIPT: mockNpm,
+      PUBLISH_NPM_REGISTRY_CLI_SCRIPT: mockNpm,
       MOCK_NPM_STATE: state,
     },
   });
