@@ -28,6 +28,8 @@
 ## CI contract
 
 - Third-party actions are pinned to full commit SHAs; the trailing version comments are for Dependabot and human readability.
+- Repository settings allow only GitHub-owned and explicitly approved third-party actions, enforce full-SHA pinning, require approval for every external fork workflow, keep tokens read-only by default, and prevent Actions from approving pull requests.
+- PR CI uses only `pull_request` with no secrets or write permissions. Do not introduce `pull_request_target`, privileged `workflow_run` processing of PR code/artifacts, or self-hosted runners for untrusted changes.
 - Preserve required check names `test (ubuntu-latest)`, `test (macos-latest)`, `test (windows-latest)`, and `release-checks` because branch protection depends on them.
 - Runtime test jobs leave Go caching disabled because this module has no third-party dependencies and compiles quickly. Release jobs enable the Go module/build cache because they compile the pinned GoReleaser module.
 
