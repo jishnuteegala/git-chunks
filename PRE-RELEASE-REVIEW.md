@@ -18,7 +18,7 @@ Status: **code findings addressed; repository gate pending**
 | Narrow size and safety claims | Addressed | Documentation describes sizing as a working-tree heuristic and states exclusions, retry boundaries, and trust requirements. Symlinks are excluded with `Lstat`. |
 | Validate CLI inputs and dry runs | Addressed | Validation precedes mutation, retries are capped, usage errors return 2, dry runs never push, detached dry runs work, and an explicit destination branch supports detached `HEAD`. |
 | Pin release dependencies and minimize privileges | Addressed in code | Actions use full SHAs; GoReleaser and npm use exact versions; jobs receive channel-specific credentials and permissions. Repository SHA enforcement remains an external setting. |
-| Make channels observable and recoverable | Addressed | GitHub requires the exact canonical asset set and verifies payload checksums. npm, Homebrew, Scoop, and winget verify remote state independently. Winget accepts only an open PR at the exact fork commit or a merged PR for the exact version. |
+| Make channels observable and recoverable | Addressed | GitHub requires the exact canonical asset set and verifies payload checksums. npm, Homebrew, Scoop, and winget verify remote state independently. The release becomes public before Winget submission so external validators can download assets. Winget accepts only an open PR at the exact fork commit or a merged PR for the exact version. |
 | Harden errors and logs | Addressed | Logs use `0600`; Git diagnostics are retained with URL credentials redacted; permanent push errors are not retried. |
 | Match concurrency documentation | Addressed | Publication concurrency is scoped to the validated tag. |
 
