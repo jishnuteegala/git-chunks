@@ -9,7 +9,7 @@ safe to keep under version control.
 | Channel | Credential | External state |
 |---|---|---|
 | GitHub Releases | `GITHUB_TOKEN` | Managed by Actions |
-| npm | Trusted publishing (OIDC), `NPM_TOKEN` fallback pending removal | Seven packages published at `0.1.0`; trusted publishers configured on all seven |
+| npm | Trusted publishing (OIDC), no stored secret | Seven packages published; trusted publishers configured on all seven |
 | Homebrew and Scoop | `PACKAGES_GITHUB_TOKEN` | Published from dedicated repositories |
 | Winget | `WINGET_GITHUB_TOKEN` | Initial PR awaiting Microsoft review |
 | AUR | `AUR_KEY` | `git-chunks-bin` published |
@@ -59,7 +59,11 @@ dispatched directly. The caller also refuses to publish unless the run uses
 
 1. Configure all seven trusted publishers with the values above.
 2. Keep the current `NPM_TOKEN` for one normal release. npm attempts OIDC before
-   falling back to the token, so the token does not prevent testing OIDC.
+   falling back to the token, so the token does not prevent testing OIDC. The
+   fallback is silent: a package whose trusted publisher mismatches still
+   publishes through the token, attributed to the account rather than to the
+   workflow, and gains no provenance. Compare `_npmUser` across packages to
+   detect this.
 3. Confirm the new versions show npm provenance linked to this repository and
    `release-please.yml`:
 
@@ -86,9 +90,22 @@ Do not delete the token before configuring all seven packages. npm does not
 validate a trusted publisher when it is saved; configuration errors appear only
 on the next real publish.
 
-Migration status: step 1 completed on 2026-07-27. All seven packages have the
-trusted publisher above. Steps 2 and 3 are pending the next normal release;
-steps 4 and 5 follow once provenance is verified.
+Migration status: step 1 completed on 2026-07-27. The `v0.2.0` recovery run
+published the six platform packages through OIDC with provenance; the
+`git-chunks` launcher silently fell back to `NPM_TOKEN` without provenance,
+indicating its trusted publisher configuration did not match. The workflows
+no longer pass `NPM_TOKEN`, so a publisher mismatch now fails the npm job
+loudly instead of publishing through the token. Fix the launcher's trusted
+publisher on npmjs.com, then the next new version completes step 3 for all
+seven packages; steps 4 and 5 follow.
+
+npm publishes account identity in public registry metadata: `maintainers`
+follows the account's current email, and each version's `_npmUser` freezes
+the email in effect at publish time. OIDC-published versions are attributed
+to `npm-oidc-no-reply@github.com` instead. Keep the npm account email set to
+a publishing alias rather than a personal address. Published version metadata
+is immutable and replicated, so unpublishing does not retract it, and
+unpublished version numbers can never be reused.
 
 ## Channel credentials
 
