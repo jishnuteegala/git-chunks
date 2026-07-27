@@ -1,7 +1,9 @@
 name: Publish existing tag
 
 # Recovery: Actions -> Release -> Run workflow, then enter an existing
-# immutable v* tag. Successful channels are verified and skipped.
+# immutable v* tag. Successful channels are verified and skipped. If the
+# original build failed before storing the canonical bundle, the release is
+# still a draft and the bundle is rebuilt from the tagged source.
 on:
   workflow_call:
     inputs:
@@ -68,14 +70,22 @@ jobs:
       - name: Reuse canonical bundle or build it once
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if gh release download "$TAG_NAME" --pattern 'release-bundle.*' --repo "${{ github.repository }}"; then
             sha256sum --check release-bundle.sha256
             tar -xzf release-bundle.tar.gz
           else
             if [[ "${{ github.event_name }}" == workflow_dispatch ]]; then
-              echo "recovery requires the canonical bundle stored by the original release" >&2
-              exit 1
+              # A published release must never get a rebuilt bundle. Rebuilding
+              # is safe only when nothing shipped: the release is still a draft
+              # with no stored bundle, and the build uses the exact tagged source.
+              draft=$(gh release view "$TAG_NAME" --repo "${{ github.repository }}" --json isDraft --jq .isDraft)
+              if [[ "$draft" != "true" ]]; then
+                echo "recovery of a published release requires the canonical bundle stored by the original release" >&2
+                exit 1
+              fi
+              git checkout -q "refs/tags/$TAG_NAME"
             fi
             go run github.com/goreleaser/goreleaser/v2@${GORELEASER_VERSION} release --clean --skip=publish,chocolatey
             bash scripts/publish-npm.sh "${TAG_NAME#v}" --dry-run
