@@ -9,7 +9,7 @@ safe to keep under version control.
 | Channel | Credential | External state |
 |---|---|---|
 | GitHub Releases | `GITHUB_TOKEN` | Managed by Actions |
-| npm | `NPM_TOKEN` during OIDC migration | Seven packages published at `0.1.0` |
+| npm | Trusted publishing (OIDC), `NPM_TOKEN` fallback pending removal | Seven packages published at `0.1.0`; trusted publishers configured on all seven |
 | Homebrew and Scoop | `PACKAGES_GITHUB_TOKEN` | Published from dedicated repositories |
 | Winget | `WINGET_GITHUB_TOKEN` | Initial PR awaiting Microsoft review |
 | AUR | `AUR_KEY` | `git-chunks-bin` published |
@@ -61,7 +61,19 @@ dispatched directly. The caller also refuses to publish unless the run uses
 2. Keep the current `NPM_TOKEN` for one normal release. npm attempts OIDC before
    falling back to the token, so the token does not prevent testing OIDC.
 3. Confirm the new versions show npm provenance linked to this repository and
-   `release-please.yml`.
+   `release-please.yml`:
+
+   ```sh
+   version=0.2.0
+   for p in git-chunks git-chunks-{linux,darwin,windows}-{x64,arm64}; do
+     npm view "$p@$version" --json dist.attestations \
+       | node -e 'const a=JSON.parse(require("fs").readFileSync(0,"utf8"));process.exit(a&&a.provenance?0:1)' \
+       && echo "$p: provenance OK" || echo "$p: NO PROVENANCE"
+   done
+   ```
+
+   Each package page on npmjs.com should also show the "Built and signed on
+   GitHub Actions" provenance badge linking to this repository.
 4. On every package, set Publishing access to **Require two-factor
    authentication and disallow tokens**.
 5. Revoke the npm access token on npmjs.com, then remove the GitHub secret:
@@ -73,6 +85,10 @@ dispatched directly. The caller also refuses to publish unless the run uses
 Do not delete the token before configuring all seven packages. npm does not
 validate a trusted publisher when it is saved; configuration errors appear only
 on the next real publish.
+
+Migration status: step 1 completed on 2026-07-27. All seven packages have the
+trusted publisher above. Steps 2 and 3 are pending the next normal release;
+steps 4 and 5 follow once provenance is verified.
 
 ## Channel credentials
 
