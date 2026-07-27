@@ -9,7 +9,7 @@ safe to keep under version control.
 | Channel | Credential | External state |
 |---|---|---|
 | GitHub Releases | `GITHUB_TOKEN` | Managed by Actions |
-| npm | Trusted publishing (OIDC), no stored secret | Seven packages published; trusted publishers configured on all seven |
+| npm | `NPM_TOKEN` bootstrap, then trusted publishing (OIDC) | All seven packages unpublished on 2026-07-27; republish starts at `0.3.0` |
 | Homebrew and Scoop | `PACKAGES_GITHUB_TOKEN` | Published from dedicated repositories |
 | Winget | `WINGET_GITHUB_TOKEN` | Initial PR awaiting Microsoft review |
 | AUR | `AUR_KEY` | `git-chunks-bin` published |
@@ -90,22 +90,44 @@ Do not delete the token before configuring all seven packages. npm does not
 validate a trusted publisher when it is saved; configuration errors appear only
 on the next real publish.
 
-Migration status: step 1 completed on 2026-07-27. The `v0.2.0` recovery run
-published the six platform packages through OIDC with provenance; the
-`git-chunks` launcher silently fell back to `NPM_TOKEN` without provenance,
-indicating its trusted publisher configuration did not match. The workflows
-no longer pass `NPM_TOKEN`, so a publisher mismatch now fails the npm job
-loudly instead of publishing through the token. Fix the launcher's trusted
-publisher on npmjs.com, then the next new version completes step 3 for all
-seven packages; steps 4 and 5 follow.
+Migration status: the `v0.2.0` recovery run published the six platform
+packages through OIDC with provenance; the `git-chunks` launcher silently
+fell back to `NPM_TOKEN` without provenance, indicating its trusted publisher
+configuration did not match.
+
+On 2026-07-27 all seven packages were fully unpublished (all packages met the
+npm unpublish policy: under 300 weekly downloads, single maintainer, no
+external dependents). Unpublishing reduces each package to a name, version
+numbers, and timestamps on the public registry, and deletes the package
+settings, including trusted publisher configurations. Consequences:
+
+- Versions `0.1.0` and `0.2.0` are permanently burned on npm; the next
+  release must be `0.3.0`.
+- The names could not be republished for 24 hours after the unpublish.
+- The first `0.3.0` publish of each name cannot use OIDC, because a trusted
+  publisher cannot be configured for an unpublished package. The workflows
+  temporarily pass `NPM_TOKEN` (a granular, publish-scoped, short-expiry
+  token) so CI can bootstrap the packages.
+
+Bootstrap sequence for `0.3.0`:
+
+1. Create a granular npm access token with publish permission and a short
+   expiry, and store it: `gh secret set NPM_TOKEN --repo jishnuteegala/git-chunks`.
+2. Release `0.3.0`; CI publishes all seven packages with the token.
+3. Recreate all seven trusted publishers with the values above (step 1 of the
+   migration sequence).
+4. Remove the temporary `NPM_TOKEN` plumbing from `publish.yml` and
+   `release-please.yml`, then complete migration steps 3-5 on the next new
+   version.
 
 npm publishes account identity in public registry metadata: `maintainers`
 follows the account's current email, and each version's `_npmUser` freezes
 the email in effect at publish time. OIDC-published versions are attributed
 to `npm-oidc-no-reply@github.com` instead. Keep the npm account email set to
 a publishing alias rather than a personal address. Published version metadata
-is immutable and replicated, so unpublishing does not retract it, and
-unpublished version numbers can never be reused.
+is immutable and replicated to third-party mirrors; a full unpublish removes
+it from the public registry itself, but unpublished version numbers can never
+be reused.
 
 ## Channel credentials
 
