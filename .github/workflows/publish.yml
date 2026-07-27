@@ -12,8 +12,6 @@ on:
         required: true
         type: string
     secrets:
-      NPM_TOKEN:
-        required: false
       PACKAGES_GITHUB_TOKEN:
         required: true
       WINGET_GITHUB_TOKEN:
@@ -152,14 +150,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-${{ inputs.tag }}
       - run: npm install -g npm@12.0.1
       - run: bash scripts/publish-npm.sh "${TAG_NAME#v}" --prepared
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   homebrew:
     needs: [build, github]
