@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.0](https://github.com/jishnuteegala/git-chunks/compare/v0.2.0...v0.3.0) (2026-07-28)
+
+
+### Continuous Integration
+
+* authenticate changelog API and allow draft release recovery ([#17](https://github.com/jishnuteegala/git-chunks/issues/17)) ([6924e23](https://github.com/jishnuteegala/git-chunks/commit/6924e23ac9820b6eaa231f26e28eb630e219c343))
+* bootstrap npm republish with a temporary token ([#20](https://github.com/jishnuteegala/git-chunks/issues/20)) ([3a82364](https://github.com/jishnuteegala/git-chunks/commit/3a82364cb439390cfe22b6c6fd458a78222a9ace))
+* publish npm exclusively through OIDC trusted publishing ([#19](https://github.com/jishnuteegala/git-chunks/issues/19)) ([79d8e02](https://github.com/jishnuteegala/git-chunks/commit/79d8e02caea0582bf8158c8e30356003b95a7b9e))
+* restore OIDC-only npm publishing after bootstrap ([#21](https://github.com/jishnuteegala/git-chunks/issues/21)) ([cfab520](https://github.com/jishnuteegala/git-chunks/commit/cfab520d0aa4a734b9428ff7d227769a57d3a669))
+
 ## [0.2.0](https://github.com/jishnuteegala/git-chunks/compare/v0.1.0...v0.2.0) (2026-07-27)
 
 
