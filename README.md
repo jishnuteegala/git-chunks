@@ -224,9 +224,10 @@ Required repo secrets:
 |--------|---------|
 | `PACKAGES_GITHUB_TOKEN` | PAT with write access to the tap + scoop bucket repos |
 | `WINGET_GITHUB_TOKEN` | PAT for the `winget-pkgs` fork used to open PRs to microsoft/winget-pkgs |
-| `NPM_TOKEN` | Temporary bootstrap token until npm trusted publishing (OIDC) is reconfigured |
 | `AUR_KEY` | Unencrypted SSH private key authorized by the AUR account |
 | `CHOCOLATEY_API_KEY` | Chocolatey Community Repository API key |
+
+npm needs no secret: all seven packages publish through npm trusted publishing (OIDC).
 
 One-time setup: create `homebrew-tap` and `scoop-bucket` repos, fork `microsoft/winget-pkgs`, authorize the AUR SSH key, and create a Chocolatey API key. First-time Winget and Chocolatey submissions are externally moderated.
 

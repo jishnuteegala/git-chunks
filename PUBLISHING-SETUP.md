@@ -9,7 +9,7 @@ safe to keep under version control.
 | Channel | Credential | External state |
 |---|---|---|
 | GitHub Releases | `GITHUB_TOKEN` | Managed by Actions |
-| npm | `NPM_TOKEN` bootstrap, then trusted publishing (OIDC) | All seven packages unpublished on 2026-07-27; republish starts at `0.3.0` |
+| npm | Trusted publishing (OIDC), no stored secret | Seven `0.0.0` bootstrap stubs published; real releases resume at `0.3.0` |
 | Homebrew and Scoop | `PACKAGES_GITHUB_TOKEN` | Published from dedicated repositories |
 | Winget | `WINGET_GITHUB_TOKEN` | Initial PR awaiting Microsoft review |
 | AUR | `AUR_KEY` | `git-chunks-bin` published |
@@ -55,40 +55,28 @@ dispatched directly. The caller also refuses to publish unless the run uses
 `refs/heads/main`; when manually dispatching, leave **Use workflow from** set to
 `main`.
 
-### Migration sequence
+All seven packages also have Publishing access set to **Require two-factor
+authentication and disallow tokens** (`npm access set mfa=publish`); OIDC
+trusted publishing is unaffected by that setting.
 
-1. Configure all seven trusted publishers with the values above.
-2. Keep the current `NPM_TOKEN` for one normal release. npm attempts OIDC before
-   falling back to the token, so the token does not prevent testing OIDC. The
-   fallback is silent: a package whose trusted publisher mismatches still
-   publishes through the token, attributed to the account rather than to the
-   workflow, and gains no provenance. Compare `_npmUser` across packages to
-   detect this.
-3. Confirm the new versions show npm provenance linked to this repository and
-   `release-please.yml`:
+After every release, confirm the new versions show npm provenance linked to
+this repository and `release-please.yml`:
 
-   ```sh
-   version=0.2.0
-   for p in git-chunks git-chunks-{linux,darwin,windows}-{x64,arm64}; do
-     npm view "$p@$version" --json dist.attestations \
-       | node -e 'const a=JSON.parse(require("fs").readFileSync(0,"utf8"));process.exit(a&&a.provenance?0:1)' \
-       && echo "$p: provenance OK" || echo "$p: NO PROVENANCE"
-   done
-   ```
+```sh
+version=0.3.0
+for p in git-chunks git-chunks-{linux,darwin,windows}-{x64,arm64}; do
+  npm view "$p@$version" --json dist.attestations \
+    | node -e 'const a=JSON.parse(require("fs").readFileSync(0,"utf8"));process.exit(a&&a.provenance?0:1)' \
+    && echo "$p: provenance OK" || echo "$p: NO PROVENANCE"
+done
+```
 
-   Each package page on npmjs.com should also show the "Built and signed on
-   GitHub Actions" provenance badge linking to this repository.
-4. On every package, set Publishing access to **Require two-factor
-   authentication and disallow tokens**.
-5. Revoke the npm access token on npmjs.com, then remove the GitHub secret:
+Each package page on npmjs.com should also show the "Built and signed on
+GitHub Actions" provenance badge linking to this repository.
 
-   ```sh
-   gh secret delete NPM_TOKEN --repo jishnuteegala/git-chunks
-   ```
-
-Do not delete the token before configuring all seven packages. npm does not
-validate a trusted publisher when it is saved; configuration errors appear only
-on the next real publish.
+npm does not validate a trusted publisher when it is saved; configuration
+errors appear only on the next real publish, where the npm job fails loudly
+because no token fallback exists.
 
 Migration status: the `v0.2.0` recovery run published the six platform
 packages through OIDC with provenance; the `git-chunks` launcher silently
@@ -104,21 +92,20 @@ settings, including trusted publisher configurations. Consequences:
 - Versions `0.1.0` and `0.2.0` are permanently burned on npm; the next
   release must be `0.3.0`.
 - The names could not be republished for 24 hours after the unpublish.
-- The first `0.3.0` publish of each name cannot use OIDC, because a trusted
-  publisher cannot be configured for an unpublished package. The workflows
-  temporarily pass `NPM_TOKEN` (a granular, publish-scoped, short-expiry
-  token) so CI can bootstrap the packages.
+- A trusted publisher cannot be configured for an unpublished package, so
+  each name needed one direct publish before OIDC could be restored.
 
-Bootstrap sequence for `0.3.0`:
+The bootstrap was completed on 2026-07-28 from an interactive npm session
+(no token): each name received a throwaway `0.0.0` stub under the
+`bootstrap` dist-tag with provenance disabled, then `npm trust github`
+recreated all seven trusted publishers (values above), and
+`npm access set mfa=publish` locked every package to require 2FA and
+disallow tokens. Real releases therefore resume at `0.3.0` through pure
+OIDC with provenance. npm assigns `latest` to a package's first publish,
+so the stubs briefly hold `latest` until `0.3.0` replaces it.
 
-1. Create a granular npm access token with publish permission and a short
-   expiry, and store it: `gh secret set NPM_TOKEN --repo jishnuteegala/git-chunks`.
-2. Release `0.3.0`; CI publishes all seven packages with the token.
-3. Recreate all seven trusted publishers with the values above (step 1 of the
-   migration sequence).
-4. Remove the temporary `NPM_TOKEN` plumbing from `publish.yml` and
-   `release-please.yml`, then complete migration steps 3-5 on the next new
-   version.
+The registry needs time to settle writes on recently unpublished names;
+direct publishes may return `409 Conflict` and succeed on retry.
 
 npm publishes account identity in public registry metadata: `maintainers`
 follows the account's current email, and each version's `_npmUser` freezes
@@ -205,8 +192,7 @@ changes. Also monitor provider expiry emails and failed publishing jobs.
 
 | Credential | Normal maintenance | Rotation procedure |
 |---|---|---|
-| npm trusted publisher | Audit all seven package configurations quarterly | No secret rotation; update the publisher immediately if repository/workflow identity changes |
-| `NPM_TOKEN` | Remove after OIDC provenance is verified | Token recovery requires temporarily allowing tokens on each affected package, installing a short-lived package-scoped token, recovering the release, then restoring **disallow tokens** and revoking/removing the token |
+| npm trusted publisher | Audit all seven package configurations quarterly | No secret rotation; update the publisher immediately if repository/workflow identity changes. If OIDC breaks entirely, recovery requires temporarily allowing tokens on each affected package, installing a short-lived package-scoped token, recovering the release, then restoring **disallow tokens** and revoking the token |
 | `PACKAGES_GITHUB_TOKEN` | Check its provider-side expiry, selected repositories, and Contents permission quarterly | Create replacement, update secret, verify read access with an existing-tag run, prove write access on the next new manifest publication, then revoke old PAT |
 | `WINGET_GITHUB_TOKEN` | Check its provider-side expiry, fork scope, and Contents permission quarterly | Create replacement, update secret, verify read access with an existing-tag run, prove write access on the next new Winget branch, then revoke old PAT |
 | `AUR_KEY` | Check the registered public keys on AUR quarterly | Generate a new pair, add new public key to AUR, update secret, prove write access on the next package update, then remove old public key and delete old private key |
