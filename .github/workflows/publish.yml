@@ -57,7 +57,7 @@ jobs:
           if [[ "${{ github.event_name }}" != workflow_dispatch ]]; then
             test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/$TAG_NAME^{commit}")"
           fi
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache: true
