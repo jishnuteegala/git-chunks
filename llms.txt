@@ -23,6 +23,9 @@ Common commands:
 Behaviour notes:
 - At least one of --max-files / --max-size is required.
 - Progress goes to stderr; --dry-run plan goes to stdout.
+- --dry-run --json emits chunks with index, files, size,
+  uncompressed_bytes_estimate, and proposed_message. size is an alias of the
+  pre-pack uncompressed_bytes_estimate.
 - Exit codes: 0 success, 1 runtime error, 2 usage error.
 - On push failure after retries, committed work is preserved; rerunning first
   pushes existing commits before creating another chunk.

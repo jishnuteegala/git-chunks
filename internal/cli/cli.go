@@ -9,6 +9,8 @@ import (
 	"io"
 )
 
+const defaultMessage = "chunk"
+
 // Main parses command-line arguments and executes git-chunks.
 func Main(args []string, stdout, stderr io.Writer, version string) int {
 	var opts Options
@@ -21,7 +23,7 @@ func Main(args []string, stdout, stderr io.Writer, version string) int {
 	flags.IntVar(&opts.MaxFiles, "max-files", 0, "max files per commit")
 	flags.Var(&opts.MaxSize, "s", "max total size per commit (e.g. 50M, 500K, 1G)")
 	flags.Var(&opts.MaxSize, "max-size", "max total size per commit (e.g. 50M, 500K, 1G)")
-	opts.Message = "chunk"
+	opts.Message = defaultMessage
 	setMessage := func(value string) error {
 		opts.Message = value
 		opts.MessageSet = true
