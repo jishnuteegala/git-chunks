@@ -43,6 +43,13 @@ func (l *Logger) Progress(format string, args ...any) {
 	l.toFile(msg)
 }
 
+// Warn reports a non-fatal issue; never suppressed on the console.
+func (l *Logger) Warn(format string, args ...any) {
+	msg := fmt.Sprintf(format, args...)
+	_, _ = fmt.Fprintln(l.console, msg)
+	l.toFile("WARN: " + msg)
+}
+
 // Error reports a failure; never suppressed on the console.
 func (l *Logger) Error(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)

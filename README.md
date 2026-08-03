@@ -174,6 +174,15 @@ git chunks --max-size 50M --push --retries 3 --log git-chunks.log
 - Only run it in a trusted repository: Git hooks and repository configuration execute with your privileges. Remotes and credential helpers must also be trusted.
 - A machine-readable summary of this tool lives in [`llms.txt`](llms.txt).
 
+### JSON dry-run plan
+
+`--dry-run --json` writes an array of chunks to stdout. Each chunk includes
+`index`, `files`, `size`, `uncompressed_bytes_estimate`, and
+`proposed_message`. `size` is the published alias of
+`uncompressed_bytes_estimate`; both are the same pre-pack working-tree byte
+estimate, not a compressed Git pack or wire-size prediction. Each `files`
+entry serializes with capitalized `Path` and `Size` keys.
+
 ## Resumability
 
 Completed chunks are recoverable after a push failure. Chunks are committed one at a time, so:

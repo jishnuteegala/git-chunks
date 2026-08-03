@@ -74,9 +74,11 @@ func validateOptions(opts Options) error {
 }
 
 type planChunk struct {
-	Index int    `json:"index"`
-	Files []File `json:"files"`
-	Size  int64  `json:"size"`
+	Index                     int    `json:"index"`
+	Files                     []File `json:"files"`
+	Size                      int64  `json:"size"`
+	UncompressedBytesEstimate int64  `json:"uncompressed_bytes_estimate"`
+	ProposedMessage           string `json:"proposed_message"`
 }
 
 func Run(opts Options, stdout, stderr io.Writer) error {
@@ -104,7 +106,18 @@ func Run(opts Options, stdout, stderr io.Writer) error {
 	}
 	if opts.DryRun {
 		chunks := chunkFiles(files, opts.MaxFiles, int64(opts.MaxSize))
-		return printPlan(chunks, opts.JSON, stdout)
+		staged, err := hasStagedChanges(repo)
+		if err != nil {
+			return err
+		}
+		if staged {
+			logger.Warn("note: the index has staged changes; a real run would refuse")
+		}
+		message := opts.Message
+		if strings.TrimSpace(message) == "" {
+			message = defaultMessage
+		}
+		return printPlan(chunks, message, opts.JSON, stdout)
 	}
 	branch := opts.Branch
 	if opts.Push && branch == "" {
@@ -154,7 +167,7 @@ func Run(opts Options, stdout, stderr io.Writer) error {
 		if _, err := git(repo, addArgs...); err != nil {
 			return restoreIndexAfterFailure(repo, err)
 		}
-		message := fmt.Sprintf("%s (%d/%d)", opts.Message, i+1, total)
+		message := chunkMessage(opts.Message, i+1, total)
 		if _, err := git(repo, "commit", "-m", message); err != nil {
 			return restoreIndexAfterFailure(repo, err)
 		}
@@ -172,6 +185,10 @@ func Run(opts Options, stdout, stderr io.Writer) error {
 	return nil
 }
 
+func chunkMessage(message string, index, total int) string {
+	return fmt.Sprintf("%s (%d/%d)", message, index, total)
+}
+
 func restoreIndexAfterFailure(repo string, cause error) error {
 	args := []string{"reset", "--mixed", "--quiet", "HEAD"}
 	if !gitSuccess(repo, "rev-parse", "--verify", "HEAD") {
@@ -183,11 +200,18 @@ func restoreIndexAfterFailure(repo string, cause error) error {
 	return fmt.Errorf("%w; the Git index was restored and working-tree changes were preserved", cause)
 }
 
-func printPlan(chunks [][]File, asJSON bool, out io.Writer) error {
+func printPlan(chunks [][]File, message string, asJSON bool, out io.Writer) error {
 	if asJSON {
 		plan := make([]planChunk, len(chunks))
 		for i, chunk := range chunks {
-			plan[i] = planChunk{Index: i + 1, Files: chunk, Size: chunkSize(chunk)}
+			size := chunkSize(chunk)
+			plan[i] = planChunk{
+				Index:                     i + 1,
+				Files:                     chunk,
+				Size:                      size,
+				UncompressedBytesEstimate: size,
+				ProposedMessage:           chunkMessage(message, i+1, len(chunks)),
+			}
 		}
 		enc := json.NewEncoder(out)
 		enc.SetIndent("", "  ")
@@ -195,13 +219,21 @@ func printPlan(chunks [][]File, asJSON bool, out io.Writer) error {
 	}
 
 	for i, chunk := range chunks {
-		if _, err := fmt.Fprintf(out, "[%d/%d] %d file(s), %s\n", i+1, len(chunks), len(chunk), formatSize(chunkSize(chunk))); err != nil {
+		if _, err := fmt.Fprintf(out, "[%d/%d] %d file(s), %s (pre-pack estimate)\n", i+1, len(chunks), len(chunk), formatSize(chunkSize(chunk))); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(out, "    proposed message: %s\n", chunkMessage(message, i+1, len(chunks))); err != nil {
 			return err
 		}
 		for _, f := range chunk {
 			if _, err := fmt.Fprintf(out, "    %s (%s)\n", f.Path, formatSize(f.Size)); err != nil {
 				return err
 			}
+		}
+	}
+	if len(chunks) > 0 {
+		if _, err := fmt.Fprintln(out, "estimates are pre-pack; actual sizes will differ"); err != nil {
+			return err
 		}
 	}
 	_, err := fmt.Fprintln(out, "Dry run: no commits made.")

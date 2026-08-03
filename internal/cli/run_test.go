@@ -288,6 +288,27 @@ func TestRunDryRunMakesNoCommits(t *testing.T) {
 	}
 }
 
+func TestRunDryRunHumanPlanShowsEstimatesAndProposedMessages(t *testing.T) {
+	repo := initRepo(t)
+	writeFile(t, repo, "a.txt", 100)
+	writeFile(t, repo, "b.txt", 200)
+
+	var out, errOut bytes.Buffer
+	if err := Run(Options{Repo: repo, MaxFiles: 1, DryRun: true, Message: "import"}, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"[1/2] 1 file(s), 100 B (pre-pack estimate)",
+		"proposed message: import (1/2)",
+		"proposed message: import (2/2)",
+		"estimates are pre-pack; actual sizes will differ",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("plan missing %q:\n%s", want, out.String())
+		}
+	}
+}
+
 func TestRunDryRunDoesNotPushExistingCommit(t *testing.T) {
 	repo := initRepo(t)
 	remote := t.TempDir()
@@ -317,8 +338,99 @@ func TestRunJSONPlan(t *testing.T) {
 	if err := Run(Options{Repo: repo, MaxFiles: 1, DryRun: true, JSON: true}, &out, &errOut); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(strings.TrimSpace(out.String()), "[") {
-		t.Fatalf("expected JSON array, got: %s", out.String())
+	var plan []planChunk
+	if err := json.Unmarshal(out.Bytes(), &plan); err != nil {
+		t.Fatalf("invalid JSON plan %q: %v", out.String(), err)
+	}
+	if len(plan) != 1 {
+		t.Fatalf("plan has %d chunks, want 1", len(plan))
+	}
+	if plan[0].Size != 100 || plan[0].UncompressedBytesEstimate != plan[0].Size {
+		t.Fatalf("plan sizes = %d and %d, want matching 100-byte estimates", plan[0].Size, plan[0].UncompressedBytesEstimate)
+	}
+	if plan[0].ProposedMessage != "chunk (1/1)" {
+		t.Fatalf("proposed message = %q, want %q", plan[0].ProposedMessage, "chunk (1/1)")
+	}
+}
+
+func TestRunDryRunWarnsAboutStagedChanges(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		stage       bool
+		quiet       bool
+		wantWarning bool
+	}{
+		{name: "unstaged changes", wantWarning: false},
+		{name: "staged changes", stage: true, wantWarning: true},
+		{name: "staged changes with quiet output", stage: true, quiet: true, wantWarning: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			repo := initRepo(t)
+			writeFile(t, repo, "a.txt", 100)
+			if test.stage {
+				mustGit(t, repo, "add", "a.txt")
+			}
+
+			var out, errOut bytes.Buffer
+			if err := Run(Options{Repo: repo, MaxFiles: 1, DryRun: true, Quiet: test.quiet}, &out, &errOut); err != nil {
+				t.Fatal(err)
+			}
+			gotWarning := strings.Contains(errOut.String(), "note: the index has staged changes; a real run would refuse")
+			if gotWarning != test.wantWarning {
+				t.Fatalf("staged warning = %t, want %t: %s", gotWarning, test.wantWarning, errOut.String())
+			}
+		})
+	}
+}
+
+func TestRunDryRunStagedWarningIsLogged(t *testing.T) {
+	repo := initRepo(t)
+	writeFile(t, repo, "a.txt", 100)
+	mustGit(t, repo, "add", "a.txt")
+	logPath := filepath.Join(t.TempDir(), "git-chunks.log")
+
+	var out, errOut bytes.Buffer
+	if err := Run(Options{Repo: repo, MaxFiles: 1, DryRun: true, LogFile: logPath}, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	log, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const warning = "note: the index has staged changes; a real run would refuse"
+	if !strings.Contains(errOut.String(), warning) {
+		t.Fatalf("stderr missing warning: %s", errOut.String())
+	}
+	if !strings.Contains(string(log), "WARN: "+warning) {
+		t.Fatalf("log missing warning: %s", log)
+	}
+}
+
+func TestRunDryRunPlanIsDeterministic(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		json bool
+	}{
+		{name: "human"},
+		{name: "json", json: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			repo := initRepo(t)
+			writeFile(t, repo, "b.txt", 200)
+			writeFile(t, repo, "a.txt", 100)
+
+			var first, firstErr, second, secondErr bytes.Buffer
+			opts := Options{Repo: repo, MaxFiles: 1, DryRun: true, JSON: test.json}
+			if err := Run(opts, &first, &firstErr); err != nil {
+				t.Fatal(err)
+			}
+			if err := Run(opts, &second, &secondErr); err != nil {
+				t.Fatal(err)
+			}
+			if first.String() != second.String() || firstErr.String() != secondErr.String() {
+				t.Fatalf("plans differ\nfirst stdout:\n%s\nsecond stdout:\n%s\nfirst stderr:\n%s\nsecond stderr:\n%s", first.String(), second.String(), firstErr.String(), secondErr.String())
+			}
+		})
 	}
 }
 
@@ -334,6 +446,20 @@ func TestRunJSONPlanIsEmptyArrayForCleanTree(t *testing.T) {
 	}
 	if len(plan) != 0 {
 		t.Fatalf("plan has %d chunks, want 0", len(plan))
+	}
+}
+
+func TestRunDryRunEmptyHumanPlanOmitsEstimateDisclaimer(t *testing.T) {
+	repo := initRepo(t)
+	var out, errOut bytes.Buffer
+	if err := Run(Options{Repo: repo, MaxFiles: 1, DryRun: true}, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), "estimates are pre-pack; actual sizes will differ") {
+		t.Fatalf("empty plan includes estimate disclaimer: %s", out.String())
+	}
+	if out.String() != "Dry run: no commits made.\n" {
+		t.Fatalf("empty plan = %q, want only dry-run summary", out.String())
 	}
 }
 
