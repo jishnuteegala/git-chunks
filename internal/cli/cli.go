@@ -3,10 +3,12 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"os/signal"
 )
 
 const defaultMessage = "chunk"
@@ -45,6 +47,16 @@ func Main(args []string, stdout, stderr io.Writer, version string) int {
 		return nil
 	})
 	flags.IntVar(&opts.Retries, "retries", 3, "push retry attempts (exponential backoff)")
+	flags.Func("spacing", "random delay between pushes (e.g. 30s-2m)", func(value string) error {
+		min, max, err := parseSpacing(value)
+		if err != nil {
+			return err
+		}
+		opts.SpacingMin = min
+		opts.SpacingMax = max
+		opts.SpacingSet = true
+		return nil
+	})
 	flags.StringVar(&opts.LogFile, "log", "", "append progress to this log file")
 	flags.BoolVar(&opts.DryRun, "dry-run", false, "show the plan without committing")
 	flags.BoolVar(&opts.JSON, "json", false, "output the --dry-run plan as JSON")
@@ -70,7 +82,9 @@ func Main(args []string, stdout, stderr io.Writer, version string) int {
 		return 0
 	}
 
-	if err := Run(opts, stdout, stderr); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), terminationSignals()...)
+	defer stop()
+	if err := RunContext(ctx, opts, stdout, stderr); err != nil {
 		_, _ = fmt.Fprintln(stderr, "git-chunks:", err)
 		var usageErr *UsageError
 		if errors.As(err, &usageErr) {
@@ -97,11 +111,12 @@ Chunking (at least one required):
   -s, --max-size <size>  max total size per commit (e.g. 50M, 500K, 1G)
 
 Committing and pushing:
-  -m, --message <msg>    commit message prefix (default: "chunk")
-  -p, --push             push after each commit
-      --remote <name>    remote to push to (default: origin)
-      --branch <name>    branch to push (default: current branch)
-      --retries <n>      push retry attempts with backoff (default: 3)
+  -m, --message <msg>     commit message prefix (default: "chunk")
+  -p, --push              push after each commit
+      --remote <name>     remote to push to (default: origin)
+      --branch <name>     branch to push (default: current branch)
+      --retries <n>       push retry attempts with backoff (default: 3)
+      --spacing <range>   random delay between pushes (e.g. 30s-2m)
 
 Output:
       --dry-run          show the chunk plan without committing
@@ -117,8 +132,9 @@ Other:
 Examples:
   git chunks -n 20                     20 files per commit
   git chunks -s 50M -p                 max 50 MB per commit, push each
-  git chunks -n 100 -s 100M --dry-run  preview the plan
-  git chunks -s 50M -p --log push.log  keep a persistent progress log
+  git chunks -n 100 -s 100M --dry-run    preview the plan
+  git chunks -s 50M -p --log push.log    keep a persistent progress log
+  git chunks -s 50M -p --spacing 30s-2m  pace pushes with live ETA
 
 Docs: https://github.com/jishnuteegala/git-chunks
 `, version)

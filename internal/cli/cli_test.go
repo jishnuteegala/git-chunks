@@ -45,3 +45,25 @@ func TestRunCLIRejectsEmptyMessageAndRemote(t *testing.T) {
 		}
 	}
 }
+
+func TestSpacingFlagValidation(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want int
+	}{
+		{name: "fixed", args: []string{"--version", "--spacing", "45s"}, want: 0},
+		{name: "range", args: []string{"--version", "--spacing", "30s-2m"}, want: 0},
+		{name: "invalid duration", args: []string{"--version", "--spacing", "soon"}, want: 2},
+		{name: "zero", args: []string{"--version", "--spacing", "0s"}, want: 2},
+		{name: "reversed", args: []string{"--version", "--spacing", "2m-30s"}, want: 2},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var out, errOut bytes.Buffer
+			if got := Main(test.args, &out, &errOut, "test"); got != test.want {
+				t.Fatalf("Main() = %d, want %d; stderr: %s", got, test.want, errOut.String())
+			}
+		})
+	}
+}

@@ -2,15 +2,18 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func mustGit(t *testing.T, repo string, args ...string) string {
@@ -119,6 +122,127 @@ func TestRunPushesEachChunk(t *testing.T) {
 	}
 }
 
+func TestRunShowsPendingETABeforeFirstPush(t *testing.T) {
+	repo := initRepo(t)
+	remote := t.TempDir()
+	mustGit(t, remote, "init", "-q", "--bare", "-b", "main")
+	mustGit(t, repo, "remote", "add", "origin", remote)
+	mustGit(t, repo, "push", "-q", "origin", "main")
+	writeFile(t, repo, "a.txt", 100)
+
+	var out, errOut bytes.Buffer
+	if err := Run(Options{Repo: repo, MaxFiles: 1, Message: "chunk", Push: true, Remote: "origin"}, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(errOut.String(), "ETA pending") {
+		t.Fatalf("stderr missing pending ETA before first push: %s", errOut.String())
+	}
+}
+
+func TestRunQuietLogsETAWithoutConsoleProgress(t *testing.T) {
+	repo := initRepo(t)
+	remote := t.TempDir()
+	mustGit(t, remote, "init", "-q", "--bare", "-b", "main")
+	mustGit(t, repo, "remote", "add", "origin", remote)
+	mustGit(t, repo, "push", "-q", "origin", "main")
+	writeFile(t, repo, "a.txt", 100)
+	writeFile(t, repo, "b.txt", 100)
+	logPath := filepath.Join(t.TempDir(), "chunk.log")
+
+	var out, errOut bytes.Buffer
+	if err := Run(Options{Repo: repo, MaxFiles: 1, Message: "chunk", Push: true, Remote: "origin", Quiet: true, LogFile: logPath}, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(errOut.String(), "ETA") {
+		t.Fatalf("quiet stderr contains ETA: %s", errOut.String())
+	}
+	log, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count := strings.Count(string(log), " ETA "); count != 2 {
+		t.Fatalf("logged ETA lines = %d, want 2:\n%s", count, log)
+	}
+}
+
+func TestRunSpacingRequestsInterPushGaps(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		spacingSet bool
+		wantGaps   int
+	}{
+		{name: "spacing", spacingSet: true, wantGaps: 2},
+		{name: "no spacing", wantGaps: 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			repo := initRepo(t)
+			remote := t.TempDir()
+			mustGit(t, remote, "init", "-q", "--bare", "-b", "main")
+			mustGit(t, repo, "remote", "add", "origin", remote)
+			mustGit(t, repo, "push", "-q", "origin", "main")
+			for _, name := range []string{"a.txt", "b.txt", "c.txt"} {
+				writeFile(t, repo, name, 100)
+			}
+			var gaps []time.Duration
+			deps := runDeps{
+				rand: rand.New(rand.NewSource(1)),
+				now:  time.Now,
+				sleep: func(_ context.Context, delay time.Duration) error {
+					gaps = append(gaps, delay)
+					return nil
+				},
+			}
+			var out, errOut bytes.Buffer
+			opts := Options{Repo: repo, MaxFiles: 1, Message: "chunk", Push: true, Remote: "origin", SpacingSet: test.spacingSet, SpacingMin: time.Second, SpacingMax: 2 * time.Second}
+			if err := run(context.Background(), opts, &out, &errOut, deps); err != nil {
+				t.Fatal(err)
+			}
+			if len(gaps) != test.wantGaps {
+				t.Fatalf("spacing requests = %d, want %d", len(gaps), test.wantGaps)
+			}
+			for _, gap := range gaps {
+				if gap < time.Second || gap > 2*time.Second {
+					t.Fatalf("spacing request = %s, want 1s-2s", gap)
+				}
+			}
+			if got := commitCount(t, remote, "main"); got != "4" {
+				t.Fatalf("remote commit count = %s, want 4", got)
+			}
+		})
+	}
+}
+
+func TestRunSpacingInterruptPreservesCommittedWork(t *testing.T) {
+	repo := initRepo(t)
+	remote := t.TempDir()
+	mustGit(t, remote, "init", "-q", "--bare", "-b", "main")
+	mustGit(t, repo, "remote", "add", "origin", remote)
+	mustGit(t, repo, "push", "-q", "origin", "main")
+	writeFile(t, repo, "a.txt", 100)
+	writeFile(t, repo, "b.txt", 100)
+	ctx, cancel := context.WithCancel(context.Background())
+	deps := runDeps{
+		rand: rand.New(rand.NewSource(1)),
+		now:  time.Now,
+		sleep: func(ctx context.Context, _ time.Duration) error {
+			cancel()
+			return ctx.Err()
+		},
+	}
+	var out, errOut bytes.Buffer
+	opts := Options{Repo: repo, MaxFiles: 1, Message: "chunk", Push: true, Remote: "origin", SpacingSet: true, SpacingMin: time.Second, SpacingMax: time.Second}
+	err := run(ctx, opts, &out, &errOut, deps)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Run() error = %v, want context cancellation", err)
+	}
+	if got := commitCount(t, remote, "main"); got != "2" {
+		t.Fatalf("remote commit count = %s, want 2", got)
+	}
+	if got := commitCount(t, repo, "HEAD"); got != "3" {
+		t.Fatalf("local commit count = %s, want 3", got)
+	}
+}
+
 func TestRunPushesExistingCommitsBeforeCreatingChunks(t *testing.T) {
 	repo := initRepo(t)
 	remote := t.TempDir()
@@ -135,10 +259,22 @@ func TestRunPushesExistingCommitsBeforeCreatingChunks(t *testing.T) {
 	mustGit(t, repo, "commit", "-q", "-m", "left over from failed run")
 
 	writeFile(t, repo, "new.txt", 100)
+	var gaps []time.Duration
+	deps := runDeps{
+		rand: rand.New(rand.NewSource(1)),
+		now:  time.Now,
+		sleep: func(_ context.Context, delay time.Duration) error {
+			gaps = append(gaps, delay)
+			return nil
+		},
+	}
 	var out, errOut bytes.Buffer
-	err := Run(Options{Repo: repo, MaxFiles: 1, Message: "chunk", Push: true, Remote: "origin"}, &out, &errOut)
+	err := run(context.Background(), Options{Repo: repo, MaxFiles: 1, Message: "chunk", Push: true, Remote: "origin", SpacingSet: true, SpacingMin: time.Second, SpacingMax: time.Second}, &out, &errOut, deps)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(gaps) != 1 || gaps[0] != time.Second {
+		t.Fatalf("spacing requests = %v, want [1s]", gaps)
 	}
 	if got := commitCount(t, remote, "main"); got != "3" { // init + leftover + new chunk
 		t.Fatalf("remote commit count = %s, want 3", got)
@@ -306,6 +442,29 @@ func TestRunDryRunHumanPlanShowsEstimatesAndProposedMessages(t *testing.T) {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("plan missing %q:\n%s", want, out.String())
 		}
+	}
+}
+
+func TestRunDryRunShowsExpectedSpacingRange(t *testing.T) {
+	repo := initRepo(t)
+	writeFile(t, repo, "a.txt", 100)
+	writeFile(t, repo, "b.txt", 100)
+	var out, errOut bytes.Buffer
+	opts := Options{Repo: repo, MaxFiles: 1, DryRun: true, SpacingSet: true, SpacingMin: time.Second, SpacingMax: 2 * time.Second}
+	if err := Run(opts, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "expected total spacing delay: 1s-2s") {
+		t.Fatalf("plan missing spacing range: %s", out.String())
+	}
+}
+
+func TestRunRejectsSpacingWithoutPush(t *testing.T) {
+	var out, errOut bytes.Buffer
+	err := Run(Options{Repo: ".", MaxFiles: 1, Message: "chunk", SpacingSet: true, SpacingMin: time.Second, SpacingMax: time.Second}, &out, &errOut)
+	var usageErr *UsageError
+	if !errors.As(err, &usageErr) || usageErr.Message != "--spacing requires --push" {
+		t.Fatalf("Run() error = %v, want --spacing requires --push", err)
 	}
 }
 
@@ -484,6 +643,7 @@ func TestRunRejectsInvalidOptions(t *testing.T) {
 		{name: "empty message", opts: Options{Repo: ".", MaxFiles: 1, Message: " "}},
 		{name: "empty remote", opts: Options{Repo: ".", MaxFiles: 1, Message: "chunk", RemoteSet: true}},
 		{name: "explicit empty branch", opts: Options{Repo: ".", MaxFiles: 1, Message: "chunk", BranchSet: true}},
+		{name: "invalid spacing", opts: Options{Repo: ".", MaxFiles: 1, Message: "chunk", SpacingSet: true, SpacingMin: time.Second, SpacingMax: 0}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -494,6 +654,33 @@ func TestRunRejectsInvalidOptions(t *testing.T) {
 				t.Fatalf("Run() error = %v, want UsageError", err)
 			}
 		})
+	}
+}
+
+func TestETAEstimate(t *testing.T) {
+	now := time.Date(2026, time.August, 3, 14, 0, 0, 0, time.UTC)
+	remaining := [][]File{{{Size: 100}}, {{Size: 100}}}
+	var eta etaEstimate
+	if got := eta.message(now, remaining, time.Second, 3*time.Second, true); got != "ETA pending" {
+		t.Fatalf("ETA = %q, want pending", got)
+	}
+	eta.add(10*time.Second, 100)
+	if got := eta.message(now, remaining, time.Second, 3*time.Second, true); got != "ETA 24s (completes ~14:00)" {
+		t.Fatalf("ETA = %q", got)
+	}
+	eta.add(20*time.Second, 100)
+	if got := eta.message(now, remaining[:1], 0, 0, false); got != "ETA 17s (completes ~14:00)" {
+		t.Fatalf("ETA = %q", got)
+	}
+}
+
+func TestRandomSpacingStaysInRange(t *testing.T) {
+	r := rand.New(rand.NewSource(1))
+	for range 100 {
+		got := randomSpacing(r, time.Second, 2*time.Second)
+		if got < time.Second || got > 2*time.Second {
+			t.Fatalf("random spacing = %s, want 1s-2s", got)
+		}
 	}
 }
 
@@ -753,6 +940,43 @@ func TestRunLogFile(t *testing.T) {
 		if got := info.Mode().Perm(); got != 0o600 {
 			t.Fatalf("log permissions = %o, want 600", got)
 		}
+	}
+}
+
+func TestLoggerDiagnosticsFinishTTYETALine(t *testing.T) {
+	for name, report := range map[string]func(*Logger){
+		"warning": func(l *Logger) { l.Warn("warning") },
+		"error":   func(l *Logger) { l.Error("error") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			var output bytes.Buffer
+			logger, err := NewLogger(&output, "", false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer logger.Close()
+			logger.ETA("ETA pending", true)
+			report(logger)
+			if got, want := output.String(), "\rETA pending\n"+name+"\n"; got != want {
+				t.Fatalf("logger output = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+func TestLoggerTTYETAClearsPreviousLongerLine(t *testing.T) {
+	var output bytes.Buffer
+	logger, err := NewLogger(&output, "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer logger.Close()
+
+	logger.ETA("ETA much longer", true)
+	logger.ETA("ETA short", true)
+
+	if got, want := output.String(), "\rETA much longer\rETA short      "; got != want {
+		t.Fatalf("logger output = %q, want %q", got, want)
 	}
 }
 

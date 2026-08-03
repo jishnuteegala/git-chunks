@@ -1,9 +1,12 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -27,6 +30,9 @@ type Options struct {
 	DryRun     bool
 	JSON       bool
 	Quiet      bool
+	SpacingMin time.Duration
+	SpacingMax time.Duration
+	SpacingSet bool
 }
 
 type UsageError struct {
@@ -58,6 +64,12 @@ func validateOptions(opts Options) error {
 	if opts.Retries > maxPushRetries {
 		return usageError("--retries must not exceed %d", maxPushRetries)
 	}
+	if opts.SpacingSet && (opts.SpacingMin <= 0 || opts.SpacingMax <= 0 || opts.SpacingMin > opts.SpacingMax) {
+		return usageError("--spacing must be a positive duration or range with min <= max")
+	}
+	if opts.SpacingSet && !opts.Push && !opts.DryRun {
+		return usageError("--spacing requires --push")
+	}
 	if opts.JSON && !opts.DryRun {
 		return usageError("--json requires --dry-run")
 	}
@@ -81,7 +93,49 @@ type planChunk struct {
 	ProposedMessage           string `json:"proposed_message"`
 }
 
+type runDeps struct {
+	rand      *rand.Rand
+	now       func() time.Time
+	sleep     func(context.Context, time.Duration) error
+	stderrTTY bool
+}
+
+func defaultRunDeps(stderr io.Writer) runDeps {
+	return runDeps{
+		rand: rand.New(rand.NewSource(time.Now().UnixNano())),
+		now:  time.Now,
+		sleep: func(ctx context.Context, delay time.Duration) error {
+			timer := time.NewTimer(delay)
+			defer timer.Stop()
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-timer.C:
+				return nil
+			}
+		},
+		stderrTTY: isTTY(stderr),
+	}
+}
+
+func isTTY(w io.Writer) bool {
+	f, ok := w.(*os.File)
+	if !ok {
+		return false
+	}
+	info, err := f.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
+}
+
 func Run(opts Options, stdout, stderr io.Writer) error {
+	return run(context.Background(), opts, stdout, stderr, defaultRunDeps(stderr))
+}
+
+func RunContext(ctx context.Context, opts Options, stdout, stderr io.Writer) error {
+	return run(ctx, opts, stdout, stderr, defaultRunDeps(stderr))
+}
+
+func run(ctx context.Context, opts Options, stdout, stderr io.Writer, deps runDeps) error {
 	if err := validateOptions(opts); err != nil {
 		return err
 	}
@@ -91,6 +145,8 @@ func Run(opts Options, stdout, stderr io.Writer) error {
 		return err
 	}
 	defer logger.Close()
+	// Finish any in-place ETA before Main writes a returned error to stderr.
+	defer logger.clearETA()
 
 	repo, err := filepath.Abs(opts.Repo)
 	if err != nil {
@@ -117,7 +173,7 @@ func Run(opts Options, stdout, stderr io.Writer) error {
 		if strings.TrimSpace(message) == "" {
 			message = defaultMessage
 		}
-		return printPlan(chunks, message, opts.JSON, stdout)
+		return printPlan(chunks, message, opts.JSON, opts.SpacingMin, opts.SpacingMax, opts.SpacingSet, stdout)
 	}
 	branch := opts.Branch
 	if opts.Push && branch == "" {
@@ -136,6 +192,7 @@ func Run(opts Options, stdout, stderr io.Writer) error {
 		}
 	}
 
+	pushed := false
 	if opts.Push {
 		unpushed, err := hasUnpushedCommits(repo, opts.Remote, branch)
 		if err != nil {
@@ -143,9 +200,10 @@ func Run(opts Options, stdout, stderr io.Writer) error {
 		}
 		if unpushed {
 			logger.Progress("Pushing existing unpushed commits before creating chunks...")
-			if err := pushWithRetry(repo, opts.Remote, branch, opts.Retries, logger); err != nil {
+			if err := pushWithRetry(ctx, repo, opts.Remote, branch, opts.Retries, logger, deps.sleep); err != nil {
 				return fmt.Errorf("could not push existing commits; no new commits were created: %w", err)
 			}
+			pushed = true
 		}
 	}
 	if len(files) == 0 {
@@ -155,6 +213,7 @@ func Run(opts Options, stdout, stderr io.Writer) error {
 
 	chunks := chunkFiles(files, opts.MaxFiles, int64(opts.MaxSize))
 	total := len(chunks)
+	eta := etaEstimate{}
 	logger.Progress("%d file(s) -> %d chunk(s)", len(files), total)
 
 	for i, chunk := range chunks {
@@ -174,10 +233,19 @@ func Run(opts Options, stdout, stderr io.Writer) error {
 		logger.Progress("%s committed", label)
 
 		if opts.Push {
-			if err := pushWithRetry(repo, opts.Remote, branch, opts.Retries, logger); err != nil {
+			logger.ETA(eta.message(deps.now(), chunks[i:], opts.SpacingMin, opts.SpacingMax, opts.SpacingSet), deps.stderrTTY)
+			if pushed && opts.SpacingSet {
+				if err := deps.sleep(ctx, randomSpacing(deps.rand, opts.SpacingMin, opts.SpacingMax)); err != nil {
+					return fmt.Errorf("spacing interrupted; committed work is safe; rerun the same command to resume: %w", err)
+				}
+			}
+			started := deps.now()
+			if err := pushWithRetry(ctx, repo, opts.Remote, branch, opts.Retries, logger, deps.sleep); err != nil {
 				return fmt.Errorf("%w\nCommitted work is safe; rerun the same command to resume", err)
 			}
+			pushed = true
 			logger.Progress("    pushed to %s/%s", opts.Remote, branch)
+			eta.add(deps.now().Sub(started), chunkSize(chunk))
 		}
 	}
 
@@ -200,7 +268,7 @@ func restoreIndexAfterFailure(repo string, cause error) error {
 	return fmt.Errorf("%w; the Git index was restored and working-tree changes were preserved", cause)
 }
 
-func printPlan(chunks [][]File, message string, asJSON bool, out io.Writer) error {
+func printPlan(chunks [][]File, message string, asJSON bool, spacingMin, spacingMax time.Duration, spacingSet bool, out io.Writer) error {
 	if asJSON {
 		plan := make([]planChunk, len(chunks))
 		for i, chunk := range chunks {
@@ -236,11 +304,16 @@ func printPlan(chunks [][]File, message string, asJSON bool, out io.Writer) erro
 			return err
 		}
 	}
+	if spacingSet && len(chunks) > 1 {
+		if _, err := fmt.Fprintf(out, "expected total spacing delay: %s-%s\n", spacingMin*time.Duration(len(chunks)-1), spacingMax*time.Duration(len(chunks)-1)); err != nil {
+			return err
+		}
+	}
 	_, err := fmt.Fprintln(out, "Dry run: no commits made.")
 	return err
 }
 
-func pushWithRetry(repo, remote, branch string, retries int, logger *Logger) error {
+func pushWithRetry(ctx context.Context, repo, remote, branch string, retries int, logger *Logger, sleep func(context.Context, time.Duration) error) error {
 	var err error
 	for attempt := 0; ; attempt++ {
 		if _, err = git(repo, "push", remote, "HEAD:refs/heads/"+branch); err == nil {
@@ -254,8 +327,78 @@ func pushWithRetry(repo, remote, branch string, retries int, logger *Logger) err
 		}
 		delay := time.Duration(1<<attempt) * time.Second
 		logger.Error("push failed (attempt %d/%d), retrying in %s: %v", attempt+1, retries+1, delay, err)
-		time.Sleep(delay)
+		if err := sleep(ctx, delay); err != nil {
+			return err
+		}
 	}
+}
+
+func parseSpacing(value string) (time.Duration, time.Duration, error) {
+	for i := 1; i < len(value); i++ {
+		if value[i] == '-' {
+			min, err := time.ParseDuration(value[:i])
+			if err != nil {
+				return 0, 0, fmt.Errorf("invalid spacing %q: %w", value, err)
+			}
+			max, err := time.ParseDuration(value[i+1:])
+			if err != nil {
+				return 0, 0, fmt.Errorf("invalid spacing %q: %w", value, err)
+			}
+			if min <= 0 || max <= 0 || min > max {
+				return 0, 0, fmt.Errorf("spacing must be a positive duration or range with min <= max")
+			}
+			return min, max, nil
+		}
+	}
+	min, err := time.ParseDuration(value)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid spacing %q: %w", value, err)
+	}
+	if min <= 0 {
+		return 0, 0, fmt.Errorf("spacing must be a positive duration or range with min <= max")
+	}
+	return min, min, nil
+}
+
+func randomSpacing(r *rand.Rand, min, max time.Duration) time.Duration {
+	if min == max {
+		return min
+	}
+	return min + time.Duration(r.Int63n(int64(max-min)+1))
+}
+
+type etaEstimate struct {
+	rate   float64
+	weight float64
+}
+
+func (e *etaEstimate) add(duration time.Duration, bytes int64) {
+	if bytes <= 0 {
+		bytes = 1
+	}
+	weight := float64(bytes)
+	sample := float64(duration) / weight
+	if e.weight == 0 {
+		e.rate, e.weight = sample, weight
+		return
+	}
+	e.rate = (e.rate*e.weight*0.5 + sample*weight) / (e.weight*0.5 + weight)
+	e.weight = e.weight*0.5 + weight
+}
+
+func (e etaEstimate) message(now time.Time, remaining [][]File, min, max time.Duration, spacing bool) string {
+	if e.weight == 0 {
+		return "ETA pending"
+	}
+	var bytes int64
+	for _, chunk := range remaining {
+		bytes += chunkSize(chunk)
+	}
+	eta := time.Duration(e.rate * float64(bytes))
+	if spacing && len(remaining) > 0 {
+		eta += (min + max) / 2 * time.Duration(len(remaining))
+	}
+	return fmt.Sprintf("ETA %s (completes ~%s)", eta.Round(time.Second), now.Add(eta).Format("15:04"))
 }
 
 func isTransientPushError(err error) bool {
