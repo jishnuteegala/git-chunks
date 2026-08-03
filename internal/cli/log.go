@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -13,6 +14,8 @@ type Logger struct {
 	console io.Writer
 	file    *os.File
 	quiet   bool
+	eta     bool
+	etaLen  int
 }
 
 func NewLogger(console io.Writer, logPath string, quiet bool) (*Logger, error) {
@@ -38,7 +41,29 @@ func (l *Logger) Close() {
 func (l *Logger) Progress(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if !l.quiet {
+		if l.eta {
+			_, _ = fmt.Fprintln(l.console)
+			l.eta = false
+			l.etaLen = 0
+		}
 		_, _ = fmt.Fprintln(l.console, msg)
+	}
+	l.toFile(msg)
+}
+
+func (l *Logger) ETA(msg string, tty bool) {
+	if !l.quiet {
+		if tty {
+			padding := ""
+			if len(msg) < l.etaLen {
+				padding = strings.Repeat(" ", l.etaLen-len(msg))
+			}
+			_, _ = fmt.Fprintf(l.console, "\r%s%s", msg, padding)
+			l.eta = true
+			l.etaLen = len(msg)
+		} else {
+			_, _ = fmt.Fprintln(l.console, msg)
+		}
 	}
 	l.toFile(msg)
 }
@@ -46,6 +71,7 @@ func (l *Logger) Progress(format string, args ...any) {
 // Warn reports a non-fatal issue; never suppressed on the console.
 func (l *Logger) Warn(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
+	l.clearETA()
 	_, _ = fmt.Fprintln(l.console, msg)
 	l.toFile("WARN: " + msg)
 }
@@ -53,8 +79,17 @@ func (l *Logger) Warn(format string, args ...any) {
 // Error reports a failure; never suppressed on the console.
 func (l *Logger) Error(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
+	l.clearETA()
 	_, _ = fmt.Fprintln(l.console, msg)
 	l.toFile("ERROR: " + msg)
+}
+
+func (l *Logger) clearETA() {
+	if l.eta {
+		_, _ = fmt.Fprintln(l.console)
+		l.eta = false
+		l.etaLen = 0
+	}
 }
 
 func (l *Logger) toFile(msg string) {

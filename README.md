@@ -135,6 +135,7 @@ git chunks -n 100 -s 100M -m "import legacy assets" --dry-run
 # machine-readable plan, persistent log
 git chunks -s 50M --dry-run --json
 git chunks -s 50M -p --log push.log
+git chunks -s 50M -p --spacing 30s-2m
 ```
 
 ## Flags
@@ -148,6 +149,7 @@ git chunks -s 50M -p --log push.log
 | `--remote` | Remote to push to (default: `origin`) |
 | `--branch` | Branch to push (default: current) |
 | `--retries` | Push retry attempts with exponential backoff (default: 3, maximum: 6) |
+| `--spacing` | Random delay between pushes (`30s-2m` or fixed `45s`) |
 | `--dry-run` | Show the chunk plan without committing |
 | `--json` | Output the `--dry-run` plan as JSON |
 | `--log` | Append timestamped progress to a log file |
@@ -156,6 +158,14 @@ git chunks -s 50M -p --log push.log
 | `--version` | Print version |
 
 At least one of `--max-files` / `--max-size` is required.
+
+With `--push`, `--spacing` waits a uniformly random duration before each chunk
+push after the first. Retry backoff is unchanged. Before each push, progress
+refreshes a bytes-weighted ETA and expected completion time; the first ETA is
+pending until that push establishes a rate. There is no countdown during spacing
+sleeps. Terminals update that ETA in place; redirected stderr writes one line per
+push. `--quiet` suppresses ETA/progress, while `--log` records one timestamped
+ETA line per push.
 
 ## Usage for AI agents and scripts
 
