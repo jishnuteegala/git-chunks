@@ -25,6 +25,14 @@
 - AUR publishes generated `PKGBUILD` and `.SRCINFO` files after the release is public, then verifies the exact remote Git tree. Chocolatey packages reference the canonical Windows archives and verify their SHA256 values; an accepted first submission remains unavailable until community moderation completes.
 - Release tags are immutable `v*` SemVer tags. A release retry must reuse and verify `release-bundle.tar.gz`; it must not rebuild a different bundle.
 
+### Winget local validation
+
+- Validate generated manifests on Windows with `winget validate --manifest <manifest-directory>`.
+- Before the first local installation test, run `winget settings --enable LocalManifestFiles` from an elevated PowerShell terminal. This is a machine-level Winget setting and should not be changed by automation.
+- Test the complete package lifecycle with `winget install --manifest <manifest-directory> --architecture x64 --scope user --accept-package-agreements --disable-interactivity`, then verify `git-chunks --version` and `git-chunks --help`, and finally run `winget uninstall jishnuteegala.git-chunks`.
+- Confirm each Windows archive SHA256 matches its generated `InstallerSha256` before submission. Test both amd64 and arm64 manifests when suitable Windows hardware or emulation is available.
+- Running `git-chunks` without chunking criteria intentionally exits `2` as a usage error. Winget validation may report that numeric result as `ERROR_FILE_NOT_FOUND`; verify executable discovery with `--version` or `--help` before treating it as a packaging failure.
+
 ## CI contract
 
 - Third-party actions are pinned to full commit SHAs; the trailing version comments are for Dependabot and human readability.
