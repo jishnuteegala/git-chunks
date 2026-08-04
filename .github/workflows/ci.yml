@@ -18,6 +18,17 @@ env:
   GORELEASER_VERSION: v2.17.0
 
 jobs:
+  conventional-commits:
+    name: Conventional commits
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Validate commit subjects
+        uses: jishnuteegala/.github/actions/conventional-commits@a53b025e84d51283f4ac6ad79fb164a9e2a48b2a # v1
+
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 5
