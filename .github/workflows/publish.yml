@@ -222,13 +222,20 @@ jobs:
         run: bash scripts/publish-aur.sh "${TAG_NAME#v}"
 
   chocolatey:
-    needs: [build, finalize]
+    needs: [build, github, finalize]
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.github.result == 'success' }}
     runs-on: windows-latest
     timeout-minutes: 10
     defaults:
       run:
         shell: pwsh
     steps:
+      - name: Require a public release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $draft = gh release view $env:TAG_NAME --repo ${{ github.repository }} --json isDraft --jq .isDraft
+          if ($draft -ne 'false') { throw "$env:TAG_NAME is not a public release (isDraft=$draft)" }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || format('refs/tags/{0}', inputs.tag) }}

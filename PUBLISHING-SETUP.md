@@ -13,7 +13,7 @@ safe to keep under version control.
 | Homebrew and Scoop | `PACKAGES_GITHUB_TOKEN` | Published from dedicated repositories |
 | Winget | `WINGET_GITHUB_TOKEN` | Initial PR awaiting Microsoft review |
 | AUR | `AUR_KEY` | `git-chunks-bin` published |
-| Chocolatey | `CHOCOLATEY_API_KEY` | `0.1.0` submitted and awaiting moderation |
+| Chocolatey | `CHOCOLATEY_API_KEY` | `0.1.0` approved; later versions submit once the release is public |
 
 ## npm trusted publishing
 

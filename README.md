@@ -232,7 +232,7 @@ Releases are fully automated with [Conventional Commits](https://www.conventiona
    - Publish `git-chunks` + per-platform binary packages to npm
    - Publish the GitHub release after its directly controlled channels verify
    - Publish and verify the AUR package
-   - Submit the Chocolatey package and verify it once moderation makes it public
+   - Submit the Chocolatey package once the release is public and verify it after moderation; a retry runs this even when other channels already hold a newer version
    - Open and verify a PR to `microsoft/winget-pkgs` after release assets are public
 
 No manual steps between merging and published packages.
