@@ -181,7 +181,7 @@ git chunks --max-size 50M --push --retries 3 --log git-chunks.log
 ```
 
 - Exit codes: `0` success, `1` runtime error, `2` usage error.
-- Git runs with terminal prompts disabled (`GIT_TERMINAL_PROMPT=0`): a remote without a credential helper fails fast instead of hanging on a prompt.
+- Git runs with terminal prompts disabled (`GIT_TERMINAL_PROMPT=0`): an HTTPS remote without a credential helper fails fast instead of hanging on a prompt. SSH passphrases, host-key confirmations, and configured askpass helpers are unaffected - pre-configure them. Git hooks run under the same non-interactive environment.
 - If a push fails after retries, committed work is preserved. Rerunning first pushes those existing commits, then processes changes still pending.
 - Only run it in a trusted repository: Git hooks and repository configuration execute with your privileges. Remotes and credential helpers must also be trusted.
 - A machine-readable summary of this tool lives in [`llms.txt`](llms.txt).
@@ -250,7 +250,7 @@ Required repo secrets:
 
 npm needs no secret: all seven packages publish through npm trusted publishing (OIDC).
 
-One-time setup: create `homebrew-tap` and `scoop-bucket` repos, fork `microsoft/winget-pkgs`, authorize the AUR SSH key, and create a Chocolatey API key. First-time Winget and Chocolatey submissions are externally moderated.
+One-time setup: create `homebrew-tap` and `scoop-bucket` repos, fork `microsoft/winget-pkgs`, authorize the AUR SSH key, and create a Chocolatey API key. Each Chocolatey version passes community moderation before becoming installable.
 
 ## License
 

@@ -2,7 +2,9 @@ package cli
 
 import (
 	"bytes"
-	"slices"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -28,9 +30,23 @@ func TestRunCLIExitCodes(t *testing.T) {
 	}
 }
 
-func TestGitEnvDisablesTerminalPrompts(t *testing.T) {
-	if !slices.Contains(gitEnv(), "GIT_TERMINAL_PROMPT=0") {
-		t.Fatal("git subprocesses must run with GIT_TERMINAL_PROMPT=0 to stay non-interactive")
+// A git subprocess must fail fast on an HTTP 401 instead of prompting for
+// credentials; with GIT_TERMINAL_PROMPT=0 git reports "terminal prompts
+// disabled".
+func TestGitSubprocessNeverPromptsForCredentials(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("WWW-Authenticate", `Basic realm="git"`)
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer server.Close()
+	t.Setenv("GIT_ASKPASS", "")
+
+	_, err := git(t.TempDir(),
+		"-c", "credential.helper=",
+		"-c", "core.askpass=",
+		"ls-remote", server.URL+"/repo.git")
+	if err == nil || !strings.Contains(err.Error(), "terminal prompts disabled") {
+		t.Fatalf("git ls-remote error = %v, want terminal-prompts-disabled failure", err)
 	}
 }
 

@@ -35,8 +35,9 @@ Behaviour notes:
 - --max-size sums regular files' current on-disk working-tree sizes. It is not
   a guarantee of compressed Git pack or protocol size.
 - The index must be empty; staged changes are rejected before committing.
-- Git runs with GIT_TERMINAL_PROMPT=0, so a remote without a credential
-  helper fails fast instead of blocking on a prompt.
+- Git runs with GIT_TERMINAL_PROMPT=0, so an HTTPS remote without a
+  credential helper fails fast instead of blocking on a prompt. SSH and
+  askpass prompts are unaffected.
 - Use only in trusted repositories with trusted hooks, remotes, and credential
   helpers. Fix server policy findings rather than trying to bypass them.
 

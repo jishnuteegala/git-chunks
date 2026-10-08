@@ -2,7 +2,7 @@
 
 ## Product invariants
 
-- `git-chunks` is a non-interactive Go CLI that delegates repository operations to the installed `git` executable with `GIT_TERMINAL_PROMPT=0`. It is invoked as either `git-chunks` or Git's external subcommand `git chunks`.
+- `git-chunks` is a non-interactive Go CLI that delegates repository operations to the installed `git` executable. Git subprocesses run with `GIT_TERMINAL_PROMPT=0` so HTTPS remotes fail fast instead of prompting; SSH and askpass prompts are unaffected and must be pre-configured. It is invoked as either `git-chunks` or Git's external subcommand `git chunks`.
 - Chunk size is a planning heuristic based on current regular-file bytes, not Git pack size. Deleted files, symlinks, submodules, history, compression, and protocol overhead do not contribute.
 - The command accepts unstaged and untracked changes but rejects a non-empty index before creating commits. A failed add or commit must restore an empty index while preserving working-tree changes.
 - With `--push`, existing unpushed commits are pushed before new chunks are created. A failed push preserves completed commits so the same command can resume.

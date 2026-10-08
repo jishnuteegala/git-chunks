@@ -18,7 +18,7 @@ command -v tar >/dev/null 2>&1 || {
 case $(uname -s) in
   Linux) os=linux ;;
   Darwin) os=darwin ;;
-  MINGW* | MSYS* | CYGWIN*)
+  MINGW* | MSYS* | CYGWIN* | UCRT64* | CLANG*)
     printf 'error: this script installs Linux/macOS builds; on Windows run: winget install jishnuteegala.git-chunks\n' >&2
     exit 1
     ;;
