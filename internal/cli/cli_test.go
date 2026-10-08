@@ -57,6 +57,9 @@ func TestGitSubprocessNeverPromptsForCredentials(t *testing.T) {
 	for _, env := range []string{"GIT_ASKPASS", "HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "all_proxy", "ALL_PROXY"} {
 		t.Setenv(env, "")
 	}
+	// Git localizes its diagnostics; pin English so the assertion is stable.
+	t.Setenv("LC_ALL", "C")
+	t.Setenv("LANGUAGE", "")
 
 	_, err := git(t.TempDir(),
 		"-c", "credential.helper=",
