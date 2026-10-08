@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"slices"
 	"testing"
 )
 
@@ -24,6 +25,12 @@ func TestRunCLIExitCodes(t *testing.T) {
 				t.Fatalf("Main() = %d, want %d; stderr: %s", got, test.want, errOut.String())
 			}
 		})
+	}
+}
+
+func TestGitEnvDisablesTerminalPrompts(t *testing.T) {
+	if !slices.Contains(gitEnv(), "GIT_TERMINAL_PROMPT=0") {
+		t.Fatal("git subprocesses must run with GIT_TERMINAL_PROMPT=0 to stay non-interactive")
 	}
 }
 

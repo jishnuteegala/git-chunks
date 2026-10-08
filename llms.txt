@@ -19,6 +19,7 @@ Common commands:
 - Preview plan (JSON): `git chunks --max-size 50M --dry-run --json`
 - Commit in chunks:    `git chunks --max-files 100 --max-size 50M -m "import assets"`
 - Commit + push each:  `git chunks --max-size 50M --push --retries 3 --log push.log`
+- Pace pushes:         `git chunks --max-size 50M -p --spacing 30s-2m`
 
 Behaviour notes:
 - At least one of --max-files / --max-size is required.
@@ -34,6 +35,8 @@ Behaviour notes:
 - --max-size sums regular files' current on-disk working-tree sizes. It is not
   a guarantee of compressed Git pack or protocol size.
 - The index must be empty; staged changes are rejected before committing.
+- Git runs with GIT_TERMINAL_PROMPT=0, so a remote without a credential
+  helper fails fast instead of blocking on a prompt.
 - Use only in trusted repositories with trusted hooks, remotes, and credential
   helpers. Fix server policy findings rather than trying to bypass them.
 

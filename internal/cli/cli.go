@@ -96,7 +96,7 @@ func Main(args []string, stdout, stderr io.Writer, version string) int {
 }
 
 func usage(out io.Writer, version string) {
-	_, _ = fmt.Fprintf(out, `git-chunks %s — commit and push changes in chunks
+	_, _ = fmt.Fprintf(out, `git-chunks %s - commit and push changes in chunks
 
 Splits pending changes into multiple commits based on criteria you set,
   optionally pushing after each one. Chunk sizes are planning heuristics, not

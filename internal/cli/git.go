@@ -16,11 +16,18 @@ func git(repo string, args ...string) (string, error) {
 	return strings.TrimSpace(out), err
 }
 
+// gitEnv keeps Git non-interactive: with terminal prompts disabled, a remote
+// without a credential helper fails fast instead of blocking on a prompt.
+func gitEnv() []string {
+	return append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+}
+
 // gitRaw returns output verbatim; needed for porcelain -z parsing where
 // leading spaces in status codes are significant.
 func gitRaw(repo string, args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = repo
+	cmd.Env = gitEnv()
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		detail := strings.TrimSpace(credentialURL.ReplaceAllString(string(out), `${1}[redacted]@`))
@@ -104,6 +111,7 @@ func hasUnpushedCommits(repo, remote, branch string) (bool, error) {
 func gitSuccess(repo string, args ...string) bool {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = repo
+	cmd.Env = gitEnv()
 	return cmd.Run() == nil
 }
 

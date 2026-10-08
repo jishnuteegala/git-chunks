@@ -9,11 +9,11 @@ safe to keep under version control.
 | Channel | Credential | External state |
 |---|---|---|
 | GitHub Releases | `GITHUB_TOKEN` | Managed by Actions |
-| npm | Trusted publishing (OIDC), no stored secret | Seven `0.0.0` bootstrap stubs published; real releases resume at `0.3.0` |
+| npm | Trusted publishing (OIDC), no stored secret | Seven `0.0.0` bootstrap stubs published; real releases resumed at `0.3.0` with provenance |
 | Homebrew and Scoop | `PACKAGES_GITHUB_TOKEN` | Published from dedicated repositories |
-| Winget | `WINGET_GITHUB_TOKEN` | Initial PR awaiting Microsoft review |
+| Winget | `WINGET_GITHUB_TOKEN` | Published through `0.3.0`; each version merges via a `microsoft/winget-pkgs` PR |
 | AUR | `AUR_KEY` | `git-chunks-bin` published |
-| Chocolatey | `CHOCOLATEY_API_KEY` | `0.1.0` approved; later versions submit once the release is public |
+| Chocolatey | `CHOCOLATEY_API_KEY` | Published through `0.3.0`; each version passes community moderation before `choco install` serves it |
 
 ## npm trusted publishing
 
@@ -100,9 +100,9 @@ The bootstrap was completed on 2026-07-28 from an interactive npm session
 `bootstrap` dist-tag with provenance disabled, then `npm trust github`
 recreated all seven trusted publishers (values above), and
 `npm access set mfa=publish` locked every package to require 2FA and
-disallow tokens. Real releases therefore resume at `0.3.0` through pure
+disallow tokens. Real releases resumed at `0.3.0` through pure
 OIDC with provenance. npm assigns `latest` to a package's first publish,
-so the stubs briefly hold `latest` until `0.3.0` replaces it.
+so the stubs briefly held `latest` until `0.3.0` replaced it.
 
 The registry needs time to settle writes on recently unpublished names;
 direct publishes may return `409 Conflict` and succeed on retry.
