@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -34,12 +37,26 @@ func TestRunCLIExitCodes(t *testing.T) {
 // credentials; with GIT_TERMINAL_PROMPT=0 git reports "terminal prompts
 // disabled".
 func TestGitSubprocessNeverPromptsForCredentials(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("WWW-Authenticate", `Basic realm="git"`)
 		w.WriteHeader(http.StatusUnauthorized)
 	}))
 	defer server.Close()
-	t.Setenv("GIT_ASKPASS", "")
+
+	// Isolate ambient credential sources so only the terminal prompt remains.
+	emptyConfig := filepath.Join(t.TempDir(), "empty-gitconfig")
+	if err := os.WriteFile(emptyConfig, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("GIT_CONFIG_GLOBAL", emptyConfig)
+	t.Setenv("GIT_CONFIG_COUNT", "0")
+	for _, env := range []string{"GIT_ASKPASS", "HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "all_proxy", "ALL_PROXY"} {
+		t.Setenv(env, "")
+	}
 
 	_, err := git(t.TempDir(),
 		"-c", "credential.helper=",
