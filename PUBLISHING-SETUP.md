@@ -10,9 +10,9 @@ safe to keep under version control.
 |---|---|---|
 | GitHub Releases | `GITHUB_TOKEN` | Managed by Actions |
 | npm | Trusted publishing (OIDC), no stored secret | Seven `0.0.0` bootstrap stubs published; real releases resumed at `0.3.0` with provenance |
-| Homebrew and Scoop | `PACKAGES_GITHUB_TOKEN` | Published from dedicated repositories |
+| Homebrew and Scoop | `PACKAGES_GITHUB_TOKEN` | Published through `0.3.0` in dedicated repositories |
 | Winget | `WINGET_GITHUB_TOKEN` | Published through `0.3.0`; each version merges via a `microsoft/winget-pkgs` PR |
-| AUR | `AUR_KEY` | `git-chunks-bin` published |
+| AUR | `AUR_KEY` | `git-chunks-bin` published through `0.3.0` |
 | Chocolatey | `CHOCOLATEY_API_KEY` | Published through `0.3.0`; each version passes community moderation before `choco install` serves it |
 
 ## npm trusted publishing
