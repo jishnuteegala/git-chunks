@@ -60,8 +60,8 @@ Preconditions:
   `scratch/` is the only valid target.
 - Push failure messages are progress, not data: they land on stderr;
   proof is the remote `git log`, not the progress text.
-- `--retries 0` makes failure-injection drives deterministic - without
-  it the retry backoff turns a test hook into a slow run.
+- `--retries 0` is harmless on failure-injection drives: a `pre-receive`
+  rejection is permanent, so it is never retried either way.
 - `--spacing` requires `--push` (or `--dry-run`); using it alone exits 2.
 - A resumed run only chunks what is still pending; count remote commits
   rather than assuming the same plan replays.
