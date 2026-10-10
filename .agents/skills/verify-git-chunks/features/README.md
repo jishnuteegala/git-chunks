@@ -8,8 +8,9 @@ the recipe.
 ## Baseline preconditions
 
 - Build once: `go build -o "$RUN_DIR/git-chunks" ./cmd/git-chunks`; the
-  binary is `$RUN_DIR/git-chunks` (`.exe` on Windows) or an installed
-  `git-chunks` on `PATH` when proving a shipped channel.
+  binary is `$RUN_DIR/git-chunks` (`git-chunks.exe` on Windows when
+  named that way) or an installed `git-chunks` on `PATH` when proving a
+  shipped channel.
 - Create a per-run directory `RUN_DIR` with `scratch/` and `evidence/`
   subdirectories, as defined in `../SKILL.md`.
 - Build all repositories inside `scratch/` with the `mkrepo` helper;

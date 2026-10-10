@@ -15,9 +15,10 @@ then follow the matching feature file as the recipe for each drive.
 ## Launch
 
 - Build the binary once per session: `go build -o "$RUN_DIR/git-chunks"
-  ./cmd/git-chunks` (`git-chunks.exe` on Windows). An installed `git-chunks`
-  on `PATH` is an acceptable substitute when the goal is proving a shipped
-  channel rather than the checkout.
+  ./cmd/git-chunks` - the name is verbatim on every OS; use
+  `git-chunks.exe` on Windows when an unambiguous name helps. An
+  installed `git-chunks` on `PATH` is an acceptable substitute when the
+  goal is proving a shipped channel rather than the checkout.
 - git-chunks is a short-lived CLI: every drive is one process invocation
   against a scratch repository. There is no server, daemon, port, or
   instance to keep alive.
@@ -85,8 +86,8 @@ build or checkout is broken; do not drive.
 
 ## Cleanup
 
-- Stop the scratch 401 server if one was started (record its PID at
-  launch; on Windows use `Stop-Process -Id <pid>`; elsewhere `kill <pid>`).
+- Stop the scratch 401 server if one was started: `kill <pid>` with the
+  PID recorded at launch (a bash PID - works on Windows Git Bash too).
 - Remove `$RUN_DIR/scratch/` only. Never delete `$RUN_DIR/evidence/`.
 - Do not kill processes by name; a correctly launched run owns at most the
   one optional helper PID.

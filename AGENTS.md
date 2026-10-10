@@ -53,3 +53,4 @@
 
 - Use `.agents/skills/develop-git-chunks/SKILL.md` for CLI behavior, Git integration, or platform-sensitive runtime changes.
 - Use `.agents/skills/release-git-chunks/SKILL.md` for artifacts, package managers, release automation, or distribution documentation.
+- Use `.agents/skills/verify-git-chunks/SKILL.md` to prove user-facing CLI behavior end to end against scratch repositories.
