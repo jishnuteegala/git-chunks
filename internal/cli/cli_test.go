@@ -2,6 +2,12 @@ package cli
 
 import (
 	"bytes"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -24,6 +30,43 @@ func TestRunCLIExitCodes(t *testing.T) {
 				t.Fatalf("Main() = %d, want %d; stderr: %s", got, test.want, errOut.String())
 			}
 		})
+	}
+}
+
+// A git subprocess must fail fast on an HTTP 401 instead of prompting for
+// credentials; with GIT_TERMINAL_PROMPT=0 git reports "terminal prompts
+// disabled".
+func TestGitSubprocessNeverPromptsForCredentials(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("WWW-Authenticate", `Basic realm="git"`)
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer server.Close()
+
+	// Isolate ambient credential sources so only the terminal prompt remains.
+	emptyConfig := filepath.Join(t.TempDir(), "empty-gitconfig")
+	if err := os.WriteFile(emptyConfig, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("GIT_CONFIG_GLOBAL", emptyConfig)
+	t.Setenv("GIT_CONFIG_COUNT", "0")
+	for _, env := range []string{"GIT_ASKPASS", "HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "all_proxy", "ALL_PROXY"} {
+		t.Setenv(env, "")
+	}
+	// Git localizes its diagnostics; pin English so the assertion is stable.
+	t.Setenv("LC_ALL", "C")
+	t.Setenv("LANGUAGE", "")
+
+	_, err := git(t.TempDir(),
+		"-c", "credential.helper=",
+		"-c", "core.askpass=",
+		"ls-remote", server.URL+"/repo.git")
+	if err == nil || !strings.Contains(err.Error(), "terminal prompts disabled") {
+		t.Fatalf("git ls-remote error = %v, want terminal-prompts-disabled failure", err)
 	}
 }
 

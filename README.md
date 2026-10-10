@@ -11,7 +11,7 @@ Split large pending changes into chunked commits to reduce push size and per-pus
 
 ## The problem
 
-If you've ever tried to push a large import — vendored dependencies, design assets, a repo migration — you've probably hit one of these:
+If you've ever tried to push a large import - vendored dependencies, design assets, a repo migration - you've probably hit one of these:
 
 ```text
 remote: fatal: pack exceeds maximum allowed size (2.00 GiB)        # GitHub
@@ -24,8 +24,8 @@ error: RPC failed; HTTP 500 curl 22 The requested URL returned error: 500  # ser
 
 A single oversized push fails for two distinct reasons:
 
-- **Hard size limits** — most hosts cap the size of one push (GitHub: 2 GB/pack; GitLab/Bitbucket/Azure DevOps: configurable, often much less).
-- **Per-push scan and hook timeouts** — secret scanning, push protection, malware/DLP scanning, and custom pre-receive hooks all run against each push, and are killed after a time budget. A push with thousands of files or gigabytes of content can blow that budget, and the whole push is rejected even though it's under the size limit. Enterprise-managed GitLab/GitHub instances are especially prone to this.
+- **Hard size limits** - most hosts cap the size of one push (GitHub: 2 GB/pack; GitLab/Bitbucket/Azure DevOps: configurable, often much less).
+- **Per-push scan and hook timeouts** - secret scanning, push protection, malware/DLP scanning, and custom pre-receive hooks all run against each push, and are killed after a time budget. A push with thousands of files or gigabytes of content can blow that budget, and the whole push is rejected even though it's under the size limit. Enterprise-managed GitLab/GitHub instances are especially prone to this.
 
 The workaround is always the same tedious loop: stage some files, commit, push, repeat.
 
@@ -80,8 +80,8 @@ installation:
 curl -fsSL https://raw.githubusercontent.com/jishnuteegala/git-chunks/main/scripts/uninstall.sh | bash
 ```
 
-The Winget and initial Chocolatey submissions may require community moderation
-before their install commands become available.
+New Chocolatey versions pass community moderation before `choco install` serves
+them; earlier approved versions stay installable meanwhile.
 
 ### Linux packages
 
@@ -156,6 +156,7 @@ git chunks -s 50M -p --spacing 30s-2m
 | `-q, --quiet` | Suppress progress output (errors still shown) |
 | `-C, --repo` | Path to git repo (default: current dir) |
 | `--version` | Print version |
+| `-h, --help` | Show usage and exit |
 
 At least one of `--max-files` / `--max-size` is required.
 
@@ -180,6 +181,7 @@ git chunks --max-size 50M --push --retries 3 --log git-chunks.log
 ```
 
 - Exit codes: `0` success, `1` runtime error, `2` usage error.
+- Git runs with terminal prompts disabled (`GIT_TERMINAL_PROMPT=0`): an HTTPS remote without a credential helper fails fast instead of hanging on a prompt. SSH passphrases, host-key confirmations, and configured askpass helpers are unaffected - pre-configure them. Git hooks run under the same non-interactive environment.
 - If a push fails after retries, committed work is preserved. Rerunning first pushes those existing commits, then processes changes still pending.
 - Only run it in a trusted repository: Git hooks and repository configuration execute with your privileges. Remotes and credential helpers must also be trusted.
 - A machine-readable summary of this tool lives in [`llms.txt`](llms.txt).
@@ -202,7 +204,7 @@ Completed chunks are recoverable after a push failure. Chunks are committed one 
 
 ## Notes
 
-- A single file larger than `--max-size` still gets its own commit — a file can't be split. If it exceeds your platform's hard limit you'll need Git LFS for that file.
+- A single file larger than `--max-size` still gets its own commit - a file can't be split. If it exceeds your platform's hard limit you'll need Git LFS for that file.
 - Untracked files are included; deleted files count as 0 bytes. Start with an empty Git index: staged changes are rejected before any commit is made.
 - `--max-size` sums current on-disk sizes of regular working-tree files. Deletions, symlinks, submodules, Git history, compression, and protocol overhead are not represented, so actual push size can be higher or lower.
 - Chunking may reduce hook and scan time, but findings from server security or policy checks must be remediated rather than bypassed.
@@ -248,8 +250,8 @@ Required repo secrets:
 
 npm needs no secret: all seven packages publish through npm trusted publishing (OIDC).
 
-One-time setup: create `homebrew-tap` and `scoop-bucket` repos, fork `microsoft/winget-pkgs`, authorize the AUR SSH key, and create a Chocolatey API key. First-time Winget and Chocolatey submissions are externally moderated.
+One-time setup: create `homebrew-tap` and `scoop-bucket` repos, fork `microsoft/winget-pkgs`, authorize the AUR SSH key, and create a Chocolatey API key. Each Chocolatey version passes community moderation before becoming installable.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).

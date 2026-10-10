@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os/signal"
+	"time"
 )
 
 const defaultMessage = "chunk"
@@ -95,8 +96,35 @@ func Main(args []string, stdout, stderr io.Writer, version string) int {
 	return 0
 }
 
+func parseSpacing(value string) (time.Duration, time.Duration, error) {
+	for i := 1; i < len(value); i++ {
+		if value[i] == '-' {
+			min, err := time.ParseDuration(value[:i])
+			if err != nil {
+				return 0, 0, fmt.Errorf("invalid spacing %q: %w", value, err)
+			}
+			max, err := time.ParseDuration(value[i+1:])
+			if err != nil {
+				return 0, 0, fmt.Errorf("invalid spacing %q: %w", value, err)
+			}
+			if min <= 0 || max <= 0 || min > max {
+				return 0, 0, fmt.Errorf("spacing must be a positive duration or range with min <= max")
+			}
+			return min, max, nil
+		}
+	}
+	min, err := time.ParseDuration(value)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid spacing %q: %w", value, err)
+	}
+	if min <= 0 {
+		return 0, 0, fmt.Errorf("spacing must be a positive duration or range with min <= max")
+	}
+	return min, min, nil
+}
+
 func usage(out io.Writer, version string) {
-	_, _ = fmt.Fprintf(out, `git-chunks %s — commit and push changes in chunks
+	_, _ = fmt.Fprintf(out, `git-chunks %s - commit and push changes in chunks
 
 Splits pending changes into multiple commits based on criteria you set,
   optionally pushing after each one. Chunk sizes are planning heuristics, not

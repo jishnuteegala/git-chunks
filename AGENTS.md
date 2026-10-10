@@ -2,7 +2,7 @@
 
 ## Product invariants
 
-- `git-chunks` is a non-interactive Go CLI that delegates repository operations to the installed `git` executable. It is invoked as either `git-chunks` or Git's external subcommand `git chunks`.
+- `git-chunks` is a non-interactive Go CLI that delegates repository operations to the installed `git` executable. Git subprocesses run with `GIT_TERMINAL_PROMPT=0` so HTTPS remotes fail fast instead of prompting; SSH and askpass prompts are unaffected and must be pre-configured. It is invoked as either `git-chunks` or Git's external subcommand `git chunks`.
 - Chunk size is a planning heuristic based on current regular-file bytes, not Git pack size. Deleted files, symlinks, submodules, history, compression, and protocol overhead do not contribute.
 - The command accepts unstaged and untracked changes but rejects a non-empty index before creating commits. A failed add or commit must restore an empty index while preserving working-tree changes.
 - With `--push`, existing unpushed commits are pushed before new chunks are created. A failed push preserves completed commits so the same command can resume.
@@ -12,7 +12,8 @@
 
 - `cmd/git-chunks/main.go` is only the version-injected process entry point.
 - `internal/cli/cli.go` parses arguments and maps errors to exit codes.
-- `internal/cli/run.go` owns validation, orchestration, resumability, and push retries.
+- `internal/cli/run.go` owns validation, orchestration, and resumability.
+- `internal/cli/push.go` carries push-delivery mechanics: retry and transient-error classification, pacing, and ETA estimation.
 - `internal/cli/git.go` is the boundary to Git and porcelain parsing. Preserve NUL-delimited parsing and credential redaction when changing it.
 - `internal/cli/chunk.go` contains the deterministic, order-preserving chunk planner.
 - The runtime has no third-party Go modules and is built with `CGO_ENABLED=0` for Linux, macOS, and Windows on amd64 and arm64.
@@ -52,3 +53,4 @@
 
 - Use `.agents/skills/develop-git-chunks/SKILL.md` for CLI behavior, Git integration, or platform-sensitive runtime changes.
 - Use `.agents/skills/release-git-chunks/SKILL.md` for artifacts, package managers, release automation, or distribution documentation.
+- Use `.agents/skills/verify-git-chunks/SKILL.md` to prove user-facing CLI behavior end to end against scratch repositories.

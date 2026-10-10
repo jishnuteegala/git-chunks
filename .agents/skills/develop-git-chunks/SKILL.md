@@ -9,7 +9,7 @@ description: Develop git-chunks CLI behavior. Use for argument handling, chunk p
 
 2. Add or update the smallest regression test at the owning seam. Use pure unit tests for parsing, sizes, and chunking; use a temporary real Git repository for status, index, commit, branch, remote, or resume behavior. Configure identity inside the temporary repository rather than relying on global Git configuration. Completion: the test fails for the missing behavior or demonstrably covers the changed edge.
 
-3. Implement the behavior at its owner. Keep Git process details in `git.go`, orchestration in `run.go`, argument/exit mapping in `cli.go`, and deterministic grouping in `chunk.go`. Preserve paths returned by NUL-delimited Git porcelain as opaque strings. Completion: the behavior satisfies the contract without introducing an alternate Git abstraction.
+3. Implement the behavior at its owner. Keep Git process details in `git.go`, orchestration in `run.go`, push-delivery mechanics (retry, pacing, ETA) in `push.go`, argument/exit mapping in `cli.go`, and deterministic grouping in `chunk.go`. Preserve paths returned by NUL-delimited Git porcelain as opaque strings. Completion: the behavior satisfies the contract without introducing an alternate Git abstraction.
 
 4. Validate with `gofmt -w cmd internal`, `go vet ./...`, and `go test -race ./...`. On an OS-specific change, inspect the relevant GoReleaser target and add platform-gated coverage where the behavior truly differs. Completion: all commands pass and every changed product invariant has regression coverage.
 

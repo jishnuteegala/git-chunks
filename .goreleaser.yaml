@@ -30,9 +30,7 @@ nfpms:
   - package_name: git-chunks
     homepage: https://github.com/jishnuteegala/git-chunks
     maintainer: Jishnu Teegala <134275562+jishnuteegala@users.noreply.github.com>
-    description: |-
-      Split large pushes into chunked commits to beat SCM push
-      size limits and per-push scan timeouts.
+    description: Commit and push changes in chunks to avoid SCM push size limits
     license: MIT
     formats:
       - deb
