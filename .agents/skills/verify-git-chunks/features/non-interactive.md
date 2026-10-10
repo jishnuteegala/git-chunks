@@ -12,7 +12,7 @@ unaffected and must be pre-configured.
   rather than prompting.
 - `ssh-unaffected` leaves SSH and askpass behavior to the user's own
   configuration (documented residual, not driven).
-- `hooks-inherit` runs Git hooks under the same non-interactive
+- `hooks-inherit` runs local Git hooks under the same non-interactive
   environment.
 
 ## How to get to it (user POV)
@@ -25,9 +25,10 @@ unaffected and must be pre-configured.
 
 Preconditions:
 
-- Doctor passed; `RUN_DIR` with `scratch/` and `evidence/` exists; the
-  scratch 401 server from `Helpers` is running with its port in
-  `scratch/port.txt` and PID in `scratch/server.pid`.
+- Doctor passed; `RUN_DIR` with `scratch/` and `evidence/` exists;
+  `node` is on `PATH` (the 401 helper needs it); the scratch 401 server
+  from `Helpers` is running with its port in `scratch/port.txt` and PID
+  in `scratch/server.pid`.
 - Git config is isolated so no credential helper can answer: set
   `GIT_CONFIG_NOSYSTEM=1` and point `HOME` (and `XDG_CONFIG_HOME` where
   honored) at an empty `scratch/home` for the driven command.

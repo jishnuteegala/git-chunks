@@ -40,7 +40,7 @@ Run a read-only health check before any drive:
 ```sh
 BIN="$RUN_DIR/git-chunks"        # or `git-chunks` when testing an installed channel
 "$BIN" --version                 # expect `git-chunks dev` (local build) or `git-chunks <semver>`
-"$BIN" --help >/dev/null         # expect exit 0; confirms the flag tree is usable
+"$BIN" --help >/dev/null 2>&1    # expect exit 0; confirms the flag tree is usable
 git --version                    # git-chunks shells out to git; it must exist on PATH
 mkdir -p "$RUN_DIR/scratch" "$RUN_DIR/evidence"
 echo doctor-ok > "$RUN_DIR/evidence/doctor.txt"

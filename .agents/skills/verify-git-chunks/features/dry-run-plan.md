@@ -15,7 +15,7 @@ anything.
 - `plan-readonly` leaves the index, commits, and working tree untouched
   and warns - on stderr - when staged changes exist instead of refusing.
 - `plan-spacing` appends the expected total spacing delay when
-  `--spacing` is set.
+  `--spacing` is set and the plan holds more than one chunk.
 
 ## How to get to it (user POV)
 

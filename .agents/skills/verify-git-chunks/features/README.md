@@ -18,6 +18,8 @@ the recipe.
 
 ## Driving conventions
 
+- Run every drive from `$RUN_DIR`; recipe paths (`scratch/`,
+  `evidence/`) are relative to it.
 - Start every recipe from the baseline unless its preconditions say
   otherwise.
 - Drive with the documented flags exactly as written; exit codes are part
