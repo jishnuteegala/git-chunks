@@ -12,7 +12,8 @@
 
 - `cmd/git-chunks/main.go` is only the version-injected process entry point.
 - `internal/cli/cli.go` parses arguments and maps errors to exit codes.
-- `internal/cli/run.go` owns validation, orchestration, resumability, and push retries.
+- `internal/cli/run.go` owns validation, orchestration, and resumability.
+- `internal/cli/push.go` carries push-delivery mechanics: retry and transient-error classification, pacing, and ETA estimation.
 - `internal/cli/git.go` is the boundary to Git and porcelain parsing. Preserve NUL-delimited parsing and credential redaction when changing it.
 - `internal/cli/chunk.go` contains the deterministic, order-preserving chunk planner.
 - The runtime has no third-party Go modules and is built with `CGO_ENABLED=0` for Linux, macOS, and Windows on amd64 and arm64.
