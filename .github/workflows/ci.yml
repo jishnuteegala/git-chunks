@@ -27,7 +27,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Validate commit subjects
-        uses: jishnuteegala/.github/actions/conventional-commits@a53b025e84d51283f4ac6ad79fb164a9e2a48b2a # v1
+        uses: jishnuteegala/.github/actions/conventional-commits@e831ba565d5b9cc907e08bf3dca55163c35e65bb # v1
 
   quality:
     runs-on: ubuntu-latest
