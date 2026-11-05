@@ -829,12 +829,68 @@ func TestPendingFilesExcludesSymlinkTargetSize(t *testing.T) {
 	if err := os.Symlink("target", filepath.Join(repo, "link")); err != nil {
 		t.Fatal(err)
 	}
-	files, err := pendingFiles(repo)
+	files, _, err := pendingFiles(repo)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(files) != 1 || files[0].Path != "link" || files[0].Size != 0 {
 		t.Fatalf("pending files = %#v, want zero-sized link", files)
+	}
+}
+
+func TestPendingFilesStagedMatchesDiffCached(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		unborn     bool
+		setup      func(t *testing.T, repo string)
+		wantStaged bool
+	}{
+		{name: "untracked", setup: func(t *testing.T, repo string) { writeFile(t, repo, "new.txt", 5) }},
+		{name: "unstaged modification", setup: func(t *testing.T, repo string) { writeFile(t, repo, "tracked.txt", 20) }},
+		{name: "intent to add", setup: func(t *testing.T, repo string) {
+			writeFile(t, repo, "new.txt", 5)
+			mustGit(t, repo, "add", "-N", "new.txt")
+		}},
+		{name: "staged addition", wantStaged: true, setup: func(t *testing.T, repo string) {
+			writeFile(t, repo, "new.txt", 5)
+			mustGit(t, repo, "add", "new.txt")
+		}},
+		{name: "staged modification then edited", wantStaged: true, setup: func(t *testing.T, repo string) {
+			writeFile(t, repo, "tracked.txt", 20)
+			mustGit(t, repo, "add", "tracked.txt")
+			writeFile(t, repo, "tracked.txt", 30)
+		}},
+		{name: "staged removal", wantStaged: true, setup: func(t *testing.T, repo string) {
+			mustGit(t, repo, "rm", "-q", "--cached", "tracked.txt")
+		}},
+		{name: "staged rename", wantStaged: true, setup: func(t *testing.T, repo string) {
+			mustGit(t, repo, "mv", "tracked.txt", "moved.txt")
+		}},
+		{name: "unborn staged addition", unborn: true, wantStaged: true, setup: func(t *testing.T, repo string) {
+			writeFile(t, repo, "new.txt", 5)
+			mustGit(t, repo, "add", "new.txt")
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var repo string
+			if test.unborn {
+				repo = initUnbornRepo(t)
+			} else {
+				repo = initRepo(t)
+				writeFile(t, repo, "tracked.txt", 10)
+				mustGit(t, repo, "add", "tracked.txt")
+				mustGit(t, repo, "commit", "-q", "-m", "tracked")
+			}
+			test.setup(t, repo)
+			_, staged, err := pendingFiles(repo)
+			if err != nil {
+				t.Fatal(err)
+			}
+			diffCached := mustGit(t, repo, "diff", "--cached", "--name-only") != ""
+			if staged != test.wantStaged || staged != diffCached {
+				t.Fatalf("staged = %t, want %t (git diff --cached non-empty: %t)", staged, test.wantStaged, diffCached)
+			}
+		})
 	}
 }
 
@@ -894,7 +950,7 @@ func TestRunCommitsDeletedRenamedAndUntrackedPathsExactly(t *testing.T) {
 	}
 	writeFile(t, repo, "modify.txt", 20)
 	writeFile(t, repo, "untracked.txt", 30)
-	planned, err := pendingFiles(repo)
+	planned, _, err := pendingFiles(repo)
 	if err != nil {
 		t.Fatal(err)
 	}

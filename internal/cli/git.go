@@ -40,14 +40,14 @@ func gitRaw(repo string, args ...string) (string, error) {
 }
 
 // pendingFiles lists all uncommitted changes (staged, unstaged, untracked)
-// with their on-disk sizes. Deleted files report size 0.
-func pendingFiles(repo string) ([]File, error) {
+// with their on-disk sizes, and reports whether the index differs from HEAD.
+// Deleted files report size 0.
+func pendingFiles(repo string) (files []File, staged bool, err error) {
 	out, err := gitRaw(repo, "status", "--porcelain", "-z", "--untracked-files=all")
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	entries := strings.Split(out, "\x00")
-	var files []File
 	seen := map[string]bool{}
 	for i := 0; i < len(entries); i++ {
 		entry := entries[i]
@@ -55,6 +55,7 @@ func pendingFiles(repo string) ([]File, error) {
 			continue
 		}
 		status, path := entry[:2], entry[3:]
+		staged = staged || (status[0] != ' ' && status[0] != '?')
 		if strings.ContainsAny(status, "RC") {
 			i++ // skip the origin-path entry that follows renames/copies
 		}
@@ -68,15 +69,7 @@ func pendingFiles(repo string) ([]File, error) {
 		}
 		files = append(files, File{Path: path, Size: size})
 	}
-	return files, nil
-}
-
-func hasStagedChanges(repo string) (bool, error) {
-	out, err := gitRaw(repo, "diff", "--cached", "--name-only", "-z")
-	if err != nil {
-		return false, err
-	}
-	return out != "", nil
+	return files, staged, nil
 }
 
 func hasUnpushedCommits(repo, remote, branch string) (bool, error) {
