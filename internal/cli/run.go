@@ -152,12 +152,12 @@ func run(ctx context.Context, opts Options, stdout, stderr io.Writer, deps runDe
 	if err != nil {
 		return err
 	}
-	if _, err := git(repo, "rev-parse", "--git-dir"); err != nil {
-		return fmt.Errorf("not a git repository: %s", repo)
-	}
-
 	files, staged, err := pendingFiles(repo)
 	if err != nil {
+		// Probe only after status fails so a valid repository costs one Git process.
+		if _, probeErr := git(repo, "rev-parse", "--git-dir"); probeErr != nil {
+			return fmt.Errorf("not a git repository: %s", repo)
+		}
 		return err
 	}
 	if opts.DryRun {

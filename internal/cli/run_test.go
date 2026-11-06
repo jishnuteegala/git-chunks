@@ -1038,8 +1038,13 @@ func TestLoggerTTYETAClearsPreviousLongerLine(t *testing.T) {
 
 func TestRunNotARepo(t *testing.T) {
 	dir := t.TempDir()
-	var out, errOut bytes.Buffer
-	if err := Run(Options{Repo: dir, MaxFiles: 1}, &out, &errOut); err == nil {
-		t.Fatal("expected error for non-repo directory")
+	for _, repo := range []string{dir, filepath.Join(dir, "missing")} {
+		for _, dryRun := range []bool{false, true} {
+			var out, errOut bytes.Buffer
+			err := Run(Options{Repo: repo, MaxFiles: 1, Message: "chunk", DryRun: dryRun}, &out, &errOut)
+			if want := "not a git repository: " + repo; err == nil || err.Error() != want {
+				t.Fatalf("Run(%q, dryRun=%v) error = %v, want %q", repo, dryRun, err, want)
+			}
+		}
 	}
 }
