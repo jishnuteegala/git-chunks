@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 var credentialURL = regexp.MustCompile(`([A-Za-z][A-Za-z0-9+.-]*://)[^/@\s]+@`)
@@ -63,13 +64,27 @@ func pendingFiles(repo string) (files []File, staged bool, err error) {
 			continue
 		}
 		seen[path] = true
-		var size int64
-		if info, err := os.Lstat(filepath.Join(repo, path)); err == nil && info.Mode().IsRegular() {
-			size = info.Size()
-		}
-		files = append(files, File{Path: path, Size: size})
+		files = append(files, File{Path: path})
 	}
+	statSizes(repo, files)
 	return files, staged, nil
+}
+
+// statSizes fills in regular-file sizes. Per-file Lstat latency dominates on
+// Windows, so a few workers overlap it.
+func statSizes(repo string, files []File) {
+	const workers = 8
+	var wg sync.WaitGroup
+	for w := range min(workers, len(files)) {
+		wg.Go(func() {
+			for i := w; i < len(files); i += workers {
+				if info, err := os.Lstat(filepath.Join(repo, files[i].Path)); err == nil && info.Mode().IsRegular() {
+					files[i].Size = info.Size()
+				}
+			}
+		})
+	}
+	wg.Wait()
 }
 
 func hasUnpushedCommits(repo, remote, branch string) (bool, error) {

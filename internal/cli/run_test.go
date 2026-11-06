@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -835,6 +836,29 @@ func TestPendingFilesExcludesSymlinkTargetSize(t *testing.T) {
 	}
 	if len(files) != 1 || files[0].Path != "link" || files[0].Size != 0 {
 		t.Fatalf("pending files = %#v, want zero-sized link", files)
+	}
+}
+
+func TestPendingFilesSizesEveryFile(t *testing.T) {
+	repo := initRepo(t)
+	writeFile(t, repo, "gone.txt", 7)
+	mustGit(t, repo, "add", "gone.txt")
+	mustGit(t, repo, "commit", "-q", "-m", "gone")
+	if err := os.Remove(filepath.Join(repo, "gone.txt")); err != nil {
+		t.Fatal(err)
+	}
+	want := []File{{Path: "gone.txt"}}
+	for i := range 20 {
+		name := fmt.Sprintf("f%02d.txt", i)
+		writeFile(t, repo, name, i+1)
+		want = append(want, File{Path: name, Size: int64(i + 1)})
+	}
+	files, _, err := pendingFiles(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(files, want) {
+		t.Fatalf("pending files = %#v, want %#v", files, want)
 	}
 }
 
