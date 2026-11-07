@@ -154,7 +154,7 @@ func run(ctx context.Context, opts Options, stdout, stderr io.Writer, deps runDe
 	}
 	files, staged, err := pendingFiles(repo)
 	if err != nil {
-		// Probe only after status fails so a valid repository skips the probe.
+		// Probe only on failure: probing first would add a Git process to every run.
 		if !gitSuccess(repo, "rev-parse", "--git-dir") {
 			return fmt.Errorf("not a git repository: %s", repo)
 		}
