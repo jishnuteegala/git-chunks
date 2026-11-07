@@ -35,6 +35,7 @@ var gitPath = sync.OnceValue(func() string {
 
 func gitCommand(repo string, args ...string) *exec.Cmd {
 	cmd := exec.Command(gitPath(), args...)
+	// Keep the child's argv[0] as exec.Command("git") sets it, not the resolved path.
 	cmd.Args[0] = "git"
 	cmd.Dir = repo
 	cmd.Env = gitEnv()
