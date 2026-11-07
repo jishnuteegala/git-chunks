@@ -24,8 +24,8 @@ func gitEnv() []string {
 }
 
 // gitPath resolves git once per process: on Windows each lookup stats every
-// PATHEXT extension in every PATH directory ahead of Git's. A failed lookup
-// is not kept, so exec.Command reports it unchanged.
+// PATHEXT extension in every PATH directory ahead of Git's. On failure it
+// falls back to the bare name so exec.Command reports its own lookup error.
 var gitPath = sync.OnceValue(func() string {
 	if path, err := exec.LookPath("git"); err == nil {
 		return path
@@ -35,7 +35,7 @@ var gitPath = sync.OnceValue(func() string {
 
 func gitCommand(repo string, args ...string) *exec.Cmd {
 	cmd := exec.Command(gitPath(), args...)
-	// Keep the child's argv[0] as exec.Command("git") sets it, not the resolved path.
+	// Git sees argv[0] as "git", as with a PATH lookup; the resolved path only starts the process.
 	cmd.Args[0] = "git"
 	cmd.Dir = repo
 	cmd.Env = gitEnv()
