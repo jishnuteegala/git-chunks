@@ -82,6 +82,14 @@ func pendingFiles(repo string) (files []File, staged bool, err error) {
 		seen[path] = true
 		files = append(files, File{Path: path})
 	}
+	if staged {
+		// Status still lists a staged submodule that diff.ignoreSubmodules or
+		// submodule.<name>.ignore hides, so git diff --cached has the final say.
+		if out, err = gitRaw(repo, "diff", "--cached", "--name-only", "-z"); err != nil {
+			return nil, false, err
+		}
+		staged = out != ""
+	}
 	statSizes(repo, files)
 	return files, staged, nil
 }

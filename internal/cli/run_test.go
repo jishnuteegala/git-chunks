@@ -890,6 +890,16 @@ func TestPendingFilesStagedMatchesDiffCached(t *testing.T) {
 		{name: "staged rename", wantStaged: true, setup: func(t *testing.T, repo string) {
 			mustGit(t, repo, "mv", "tracked.txt", "moved.txt")
 		}},
+		{name: "staged submodule hidden by diff.ignoreSubmodules", setup: func(t *testing.T, repo string) {
+			sub := filepath.Join(repo, "sub")
+			mustGit(t, repo, "init", "-q", "sub")
+			mustGit(t, sub, "-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-q", "--allow-empty", "-m", "one")
+			mustGit(t, repo, "add", "sub")
+			mustGit(t, repo, "commit", "-q", "-m", "sub")
+			mustGit(t, sub, "-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-q", "--allow-empty", "-m", "two")
+			mustGit(t, repo, "add", "sub")
+			mustGit(t, repo, "config", "diff.ignoreSubmodules", "all")
+		}},
 		{name: "unborn staged addition", unborn: true, wantStaged: true, setup: func(t *testing.T, repo string) {
 			writeFile(t, repo, "new.txt", 5)
 			mustGit(t, repo, "add", "new.txt")
