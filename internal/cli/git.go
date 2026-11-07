@@ -57,8 +57,8 @@ func gitRaw(repo string, args ...string) (string, error) {
 }
 
 // pendingFiles lists all uncommitted changes (staged, unstaged, untracked)
-// with their on-disk sizes, and reports whether the index differs from HEAD.
-// Deleted files report size 0.
+// with their on-disk sizes, and reports whether git diff --cached sees staged
+// changes. Deleted files report size 0.
 func pendingFiles(repo string) (files []File, staged bool, err error) {
 	out, err := gitRaw(repo, "status", "--porcelain", "-z", "--untracked-files=all")
 	if err != nil {
@@ -85,10 +85,11 @@ func pendingFiles(repo string) (files []File, staged bool, err error) {
 	if staged {
 		// Status still lists a staged submodule that diff.ignoreSubmodules or
 		// submodule.<name>.ignore hides, so git diff --cached has the final say.
-		if out, err = gitRaw(repo, "diff", "--cached", "--name-only", "-z"); err != nil {
+		diff, err := gitRaw(repo, "diff", "--cached", "--name-only", "-z")
+		if err != nil {
 			return nil, false, err
 		}
-		staged = out != ""
+		staged = diff != ""
 	}
 	statSizes(repo, files)
 	return files, staged, nil
