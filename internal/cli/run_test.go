@@ -1072,3 +1072,17 @@ func TestRunNotARepo(t *testing.T) {
 		}
 	}
 }
+
+func TestRunReportsStatusFailureInsideRepository(t *testing.T) {
+	repo := initRepo(t)
+	if err := os.WriteFile(filepath.Join(repo, ".git", "index"), []byte("corrupt"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, dryRun := range []bool{false, true} {
+		var out, errOut bytes.Buffer
+		err := Run(Options{Repo: repo, MaxFiles: 1, Message: "chunk", DryRun: dryRun}, &out, &errOut)
+		if err == nil || !strings.HasPrefix(err.Error(), "git command failed: ") {
+			t.Fatalf("Run(dryRun=%v) error = %v, want the git status failure", dryRun, err)
+		}
+	}
+}
