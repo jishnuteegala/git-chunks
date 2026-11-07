@@ -23,13 +23,28 @@ func gitEnv() []string {
 	return append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 }
 
+// gitPath resolves git once per process: on Windows each lookup stats every
+// PATHEXT extension in every PATH directory ahead of Git's. A failed lookup
+// is not kept, so exec.Command reports it unchanged.
+var gitPath = sync.OnceValue(func() string {
+	if path, err := exec.LookPath("git"); err == nil {
+		return path
+	}
+	return "git"
+})
+
+func gitCommand(repo string, args ...string) *exec.Cmd {
+	cmd := exec.Command(gitPath(), args...)
+	cmd.Args[0] = "git"
+	cmd.Dir = repo
+	cmd.Env = gitEnv()
+	return cmd
+}
+
 // gitRaw returns output verbatim; needed for porcelain -z parsing where
 // leading spaces in status codes are significant.
 func gitRaw(repo string, args ...string) (string, error) {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = repo
-	cmd.Env = gitEnv()
-	out, err := cmd.CombinedOutput()
+	out, err := gitCommand(repo, args...).CombinedOutput()
 	if err != nil {
 		detail := strings.TrimSpace(credentialURL.ReplaceAllString(string(out), `${1}[redacted]@`))
 		if detail != "" {
@@ -117,10 +132,7 @@ func hasUnpushedCommits(repo, remote, branch string) (bool, error) {
 }
 
 func gitSuccess(repo string, args ...string) bool {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = repo
-	cmd.Env = gitEnv()
-	return cmd.Run() == nil
+	return gitCommand(repo, args...).Run() == nil
 }
 
 func currentBranch(repo string) (string, error) {
