@@ -45,6 +45,8 @@ jobs:
           go mod tidy
           git diff --exit-code -- go.mod go.sum
       - run: go vet ./...
+        env:
+          PROBE: ${{ matrix.probe }}
       - name: Lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
