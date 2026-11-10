@@ -101,6 +101,7 @@ test("a draft holding an asset the bundle does not have fails after the upload",
   writeFileSync(join(release.remote, "git-chunks_1.2.3_stale.zip"), "from an earlier bundle");
   const result = run(release, true);
   assert.equal(result.status, 1);
+  assert.equal(result.calls.filter((call) => call.startsWith("release upload")).length, 1);
   assert.match(result.stderr, /> git-chunks_1\.2\.3_stale\.zip/);
   assert.match(result.stderr, /release assets \(>\) differ from the stored bundle \(<\)/);
 }));
