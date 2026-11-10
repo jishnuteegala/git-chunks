@@ -57,6 +57,13 @@ jobs:
           if [[ "${{ github.event_name }}" != workflow_dispatch ]]; then
             test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/$TAG_NAME^{commit}")"
           fi
+      - name: Refuse a dispatch older than the latest release
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          latest=$(gh release view --repo "${{ github.repository }}" --json tagName --jq .tagName)
+          node scripts/check-release-order.mjs "$TAG_NAME" "$latest"
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod

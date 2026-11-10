@@ -72,8 +72,13 @@ function platformPackage(name, platform) {
   };
 }
 
+// The registry does not preserve the key order of object fields such as
+// optionalDependencies, so objects compare by sorted keys; arrays stay ordered.
 function same(value, expected) {
-  return JSON.stringify(value) === JSON.stringify(expected);
+  const sorted = (field) => field && typeof field === "object" && !Array.isArray(field)
+    ? Object.fromEntries(Object.entries(field).sort(([a], [b]) => (a < b ? -1 : 1)))
+    : field;
+  return JSON.stringify(sorted(value)) === JSON.stringify(sorted(expected));
 }
 
 function validateExisting(actual, expected, packed) {
@@ -92,7 +97,10 @@ function validateExisting(actual, expected, packed) {
     ["dist.shasum", shasum, packed.shasum],
   ];
   const mismatch = checks.find(([, actualValue, expectedValue]) => !same(actualValue, expectedValue));
-  if (mismatch) throw new Error(`${expected.name}@${version} exists with unexpected ${mismatch[0]}`);
+  if (mismatch) {
+    const [field, actualValue, expectedValue] = mismatch;
+    throw new Error(`${expected.name}@${version} exists with unexpected ${field}: expected ${JSON.stringify(expectedValue)}, registry has ${JSON.stringify(actualValue)}`);
+  }
 }
 
 async function queryExisting(pkg) {

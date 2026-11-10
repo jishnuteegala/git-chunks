@@ -115,6 +115,29 @@ test("conflicting existing package fails before any publish", () => {
   }
 });
 
+test("existing launcher whose optionalDependencies differ only in key order verifies", () => {
+  const root = fixture();
+  try {
+    const result = run(root, "reordered", "1.2.3");
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(published(root), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("existing launcher with a different optionalDependencies value fails and prints both values", () => {
+  const root = fixture();
+  try {
+    const result = run(root, "mismatch", "1.2.3");
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /unexpected optionalDependencies: expected \{[^}]*"git-chunks-linux-x64":"1\.2\.3"[^}]*\}, registry has \{[^}]*"git-chunks-linux-x64":"0\.0\.1"/);
+    assert.deepEqual(published(root), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("dry run packages all tarballs without registry queries or publishing", () => {
   const root = fixture();
   try {

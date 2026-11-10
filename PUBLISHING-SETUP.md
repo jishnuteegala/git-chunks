@@ -183,7 +183,8 @@ After every release:
 
 Use **Actions -> Release -> Run workflow** with an existing immutable `v*` tag
 to retry. The workflow reuses `release-bundle.tar.gz`, verifies completed
-channels, and resumes missing channels. It never creates a new version.
+channels, and resumes missing channels. It never creates a new version, and it
+refuses a tag older than the latest release before any channel runs.
 
 ## Rotation and incident response
 

@@ -44,8 +44,7 @@ if (command === "view" || command === "registry-view") {
   const split = spec.lastIndexOf("@");
   const name = spec.slice(0, split);
   const version = spec.slice(split + 1);
-  const existing = ["complete", "flat"].includes(state)
-    || state === "conflict"
+  const existing = ["complete", "flat", "conflict", "reordered", "mismatch"].includes(state)
     || (state === "partial" && ["git-chunks-linux-x64", "git-chunks-linux-arm64"].includes(name))
     || (() => {
       try {
@@ -60,6 +59,10 @@ if (command === "view" || command === "registry-view") {
   }
   const value = metadata(name, version);
   if (state === "conflict" && name === "git-chunks") value.dist.integrity = "sha512-conflict";
+  if (state === "reordered" && name === "git-chunks") {
+    value.optionalDependencies = Object.fromEntries(Object.entries(value.optionalDependencies).reverse());
+  }
+  if (state === "mismatch" && name === "git-chunks") value.optionalDependencies["git-chunks-linux-x64"] = "0.0.1";
   if (state === "flat") {
     value["dist.integrity"] = value.dist.integrity;
     value["dist.shasum"] = value.dist.shasum;
