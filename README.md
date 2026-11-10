@@ -234,7 +234,7 @@ Releases are fully automated with [Conventional Commits](https://www.conventiona
    - Publish the Homebrew cask to `jishnuteegala/homebrew-tap` once the release is public
    - Publish the Scoop manifest to `jishnuteegala/scoop-bucket` once the release is public
    - Publish and verify the AUR package
-   - Submit the Chocolatey package once the release is public and verify it after moderation; a retry runs this even when other channels already hold a newer version
+   - Submit the Chocolatey package once the release is public and verify it after moderation; a retry runs this even when another post-publish channel fails
    - Open and verify a PR to `microsoft/winget-pkgs` after release assets are public
 
 No manual steps between merging and published packages.

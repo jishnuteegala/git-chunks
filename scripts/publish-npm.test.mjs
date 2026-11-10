@@ -55,6 +55,15 @@ function run(root, state, ...args) {
   });
 }
 
+function withFixture(body) {
+  const root = fixture();
+  try {
+    body(root);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 function published(root) {
   try {
     return readFileSync(join(root, "npm-calls.log"), "utf8").trim().split("\n").filter(Boolean);
@@ -63,124 +72,78 @@ function published(root) {
   }
 }
 
-test("fresh release preflights all packages and publishes main last", () => {
-  const root = fixture();
-  try {
-    const result = run(root, "fresh", "1.2.3");
-    assert.equal(result.status, 0, result.stderr);
-    const calls = published(root);
-    assert.equal(calls.length, 7);
-    assert.equal(calls.at(-1), "git-chunks-1.2.3.tgz");
-    for (const [, , key, binary] of platformPackages) {
-      assert.equal(readFileSync(join(root, "npm-stage", `git-chunks-${key}`, "bin", binary), "utf8"),
-        `${key.startsWith("windows") ? "windows" : key.split("-")[0]}/${key.endsWith("x64") ? "amd64" : "arm64"}`);
-    }
-  } finally {
-    rmSync(root, { recursive: true, force: true });
+test("fresh release preflights all packages and publishes main last", () => withFixture((root) => {
+  const result = run(root, "fresh", "1.2.3");
+  assert.equal(result.status, 0, result.stderr);
+  const calls = published(root);
+  assert.equal(calls.length, 7);
+  assert.equal(calls.at(-1), "git-chunks-1.2.3.tgz");
+  for (const [, , key, binary] of platformPackages) {
+    assert.equal(readFileSync(join(root, "npm-stage", `git-chunks-${key}`, "bin", binary), "utf8"),
+      `${key.startsWith("windows") ? "windows" : key.split("-")[0]}/${key.endsWith("x64") ? "amd64" : "arm64"}`);
   }
-});
+}));
 
-test("partial release verifies existing packages and resumes", () => {
-  const root = fixture();
-  try {
-    const result = run(root, "partial", "1.2.3");
-    assert.equal(result.status, 0, result.stderr);
-    assert.equal(published(root).length, 5);
-    assert.equal(published(root).at(-1), "git-chunks-1.2.3.tgz");
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
+test("partial release verifies existing packages and resumes", () => withFixture((root) => {
+  const result = run(root, "partial", "1.2.3");
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(published(root).length, 5);
+  assert.equal(published(root).at(-1), "git-chunks-1.2.3.tgz");
+}));
 
-test("complete release verifies all packages without publishing", () => {
-  const root = fixture();
-  try {
-    const result = run(root, "complete", "1.2.3");
-    assert.equal(result.status, 0, result.stderr);
-    assert.deepEqual(published(root), []);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
+test("complete release verifies all packages without publishing", () => withFixture((root) => {
+  const result = run(root, "complete", "1.2.3");
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(published(root), []);
+}));
 
-test("conflicting existing package fails before any publish", () => {
-  const root = fixture();
-  try {
-    const result = run(root, "conflict", "1.2.3");
-    assert.equal(result.status, 1);
-    assert.match(result.stderr, /unexpected dist\.integrity/);
-    assert.deepEqual(published(root), []);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
+test("conflicting existing package fails before any publish", () => withFixture((root) => {
+  const result = run(root, "conflict", "1.2.3");
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /unexpected dist\.integrity/);
+  assert.deepEqual(published(root), []);
+}));
 
-test("existing launcher whose optionalDependencies differ only in key order verifies", () => {
-  const root = fixture();
-  try {
-    const result = run(root, "reordered", "1.2.3");
-    assert.equal(result.status, 0, result.stderr);
-    assert.deepEqual(published(root), []);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
+test("existing launcher whose optionalDependencies differ only in key order verifies", () => withFixture((root) => {
+  const result = run(root, "reordered", "1.2.3");
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(published(root), []);
+}));
 
-test("existing launcher with a different optionalDependencies value fails and prints both values", () => {
-  const root = fixture();
-  try {
-    const result = run(root, "mismatch", "1.2.3");
-    assert.equal(result.status, 1);
-    assert.match(result.stderr, /unexpected optionalDependencies: expected \{[^}]*"git-chunks-linux-x64":"1\.2\.3"[^}]*\}, registry has \{[^}]*"git-chunks-linux-x64":"0\.0\.1"/);
-    assert.deepEqual(published(root), []);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
+test("existing launcher with a different optionalDependencies value fails and prints both values", () => withFixture((root) => {
+  const result = run(root, "mismatch", "1.2.3");
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /unexpected optionalDependencies: expected \{[^}]*"git-chunks-linux-x64":"1\.2\.3"[^}]*\}, registry has \{[^}]*"git-chunks-linux-x64":"0\.0\.1"/);
+  assert.deepEqual(published(root), []);
+}));
 
-test("dry run packages all tarballs without registry queries or publishing", () => {
-  const root = fixture();
-  try {
-    const result = run(root, "conflict", "1.2.3", "--dry-run");
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /preflight passed for 7 npm tarballs/);
-    assert.deepEqual(published(root), []);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
+test("dry run packages all tarballs without registry queries or publishing", () => withFixture((root) => {
+  const result = run(root, "conflict", "1.2.3", "--dry-run");
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /preflight passed for 7 npm tarballs/);
+  assert.deepEqual(published(root), []);
+}));
 
-test("prepared mode publishes the exact preflighted tarballs", () => {
-  const root = fixture();
-  try {
-    const dry = run(root, "fresh", "1.2.3", "--dry-run");
-    assert.equal(dry.status, 0, dry.stderr);
-    const metadata = join(root, "npm-stage", "packages.json");
-    const before = readFileSync(metadata, "utf8");
-    const result = run(root, "fresh", "1.2.3", "--prepared");
-    assert.equal(result.status, 0, result.stderr);
-    assert.equal(readFileSync(metadata, "utf8"), before);
-    assert.equal(published(root).length, 7);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
+test("prepared mode publishes the exact preflighted tarballs", () => withFixture((root) => {
+  const dry = run(root, "fresh", "1.2.3", "--dry-run");
+  assert.equal(dry.status, 0, dry.stderr);
+  const metadata = join(root, "npm-stage", "packages.json");
+  const before = readFileSync(metadata, "utf8");
+  const result = run(root, "fresh", "1.2.3", "--prepared");
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(readFileSync(metadata, "utf8"), before);
+  assert.equal(published(root).length, 7);
+}));
 
-test("accepts npm view's flat dist metadata keys", () => {
-  const root = fixture();
-  try {
-    const result = run(root, "flat", "1.2.3");
-    assert.equal(result.status, 0, result.stderr);
-    assert.deepEqual(published(root), []);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
+test("accepts npm view's flat dist metadata keys", () => withFixture((root) => {
+  const result = run(root, "flat", "1.2.3");
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(published(root), []);
+}));
 
 test("missing and duplicate binaries fail in preflight", () => {
   for (const mutation of ["missing", "duplicate"]) {
-    const root = fixture();
-    try {
+    withFixture((root) => {
       const manifestPath = join(root, "dist", "artifacts.json");
       const artifacts = JSON.parse(readFileSync(manifestPath, "utf8"));
       if (mutation === "missing") artifacts.shift(); else artifacts.push({ ...artifacts[0] });
@@ -189,20 +152,13 @@ test("missing and duplicate binaries fail in preflight", () => {
       assert.equal(result.status, 1);
       assert.match(result.stderr, /expected one git-chunks Binary/);
       assert.deepEqual(published(root), []);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
+    });
   }
 });
 
-test("rejects invalid SemVer before packaging", () => {
-  const root = fixture();
-  try {
-    const result = run(root, "fresh", "01.2.3");
-    assert.equal(result.status, 2);
-    assert.match(result.stderr, /SemVer/);
-    assert.deepEqual(published(root), []);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
+test("rejects invalid SemVer before packaging", () => withFixture((root) => {
+  const result = run(root, "fresh", "01.2.3");
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /SemVer/);
+  assert.deepEqual(published(root), []);
+}));

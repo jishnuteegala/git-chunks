@@ -18,8 +18,8 @@ else
   echo "$tag is published; verifying its assets without uploading" >&2
 fi
 
-if ! diff <(printf '%s\n' "${payloads[@]##*[/\\]}" release-bundle.tar.gz release-bundle.sha256 | sort) \
-  <(gh release view "$tag" --json assets --jq '.assets[].name' | sort) >&2; then
+assets=$(gh release view "$tag" --json assets --jq '.assets[].name')
+if ! diff <(printf '%s\n' "${payloads[@]##*[/\\]}" release-bundle.tar.gz release-bundle.sha256 | sort) <(sort <<< "$assets") >&2; then
   fail "release assets (>) differ from the stored bundle (<)"
 fi
 

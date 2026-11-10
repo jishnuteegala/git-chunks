@@ -190,11 +190,13 @@ Use **Actions -> Release -> Run workflow** with an existing immutable `v*` tag
 to retry. The workflow reuses `release-bundle.tar.gz`, verifies completed
 channels, and resumes missing channels. It never creates a new version, and it
 refuses a tag older than the latest release before any channel runs. A draft
-release gets its assets uploaded again with `--clobber`. A published release
-is never modified: the retry only verifies its assets against the bundle's
-`checksums.txt` and fails on a missing, extra, or different asset, which can
-only be fixed by releasing a new version. This is how a channel that failed
-after publish (for example Homebrew or Scoop) is retried.
+release gets its assets uploaded again with `--clobber`. GitHub immutable
+releases are enabled, so a published release is never modified: the retry
+uploads nothing to it, verifies its assets against the bundle's
+`checksums.txt`, and fails on a missing, extra, or different asset, which can
+only be fixed by releasing a new version. Otherwise it resumes the missing
+channels; this is how a channel that failed after publish (for example
+Homebrew or Scoop) is retried.
 
 ## Rotation and incident response
 

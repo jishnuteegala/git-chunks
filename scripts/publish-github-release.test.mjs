@@ -39,6 +39,7 @@ function fixture() {
   const shim = join(root, "shim");
   for (const dir of [join(root, "dist"), remote, shim]) mkdirSync(dir);
   writeFileSync(join(shim, "gh"), fakeGh, { mode: 0o755 });
+  writeFileSync(join(root, "gh.log"), "");
   const sums = payloads.map((name) => {
     writeFileSync(join(root, "dist", name), `payload ${name}`);
     return `${createHash("sha256").update(`payload ${name}`).digest("hex")}  ${name}\n`;
@@ -69,7 +70,7 @@ function run({ root, remote, shim }, draft) {
     env: { ...process.env, GH_SHIM_DIR: shim, GH_SHIM_REMOTE: remote, GH_SHIM_LOG: join(root, "gh.log"), GH_SHIM_DRAFT: String(draft) },
   });
   assert.notEqual(result.status, 99, "gh did not resolve to the shim");
-  return { ...result, calls: readFileSync(join(root, "gh.log"), "utf8").trim().split("\n") };
+  return { ...result, calls: readFileSync(join(root, "gh.log"), "utf8").split("\n").filter(Boolean) };
 }
 
 function withFixture(body) {
@@ -92,6 +93,16 @@ test("a draft release gets every payload uploaded with --clobber, then verified"
   assert.match(uploads[0], /^release upload v1\.2\.3 --clobber /);
   for (const name of [...payloads, "checksums.txt"]) assert.ok(uploads[0].includes(name), name);
   assert.match(result.stdout, /verified v1\.2\.3 release assets against the stored bundle/);
+}));
+
+test("a draft holding an asset the bundle does not have fails after the upload", () => withFixture((release) => {
+  writeFileSync(join(release.remote, "release-bundle.tar.gz"), "bundle");
+  writeFileSync(join(release.remote, "release-bundle.sha256"), "bundle checksum\n");
+  writeFileSync(join(release.remote, "git-chunks_1.2.3_stale.zip"), "from an earlier bundle");
+  const result = run(release, true);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /> git-chunks_1\.2\.3_stale\.zip/);
+  assert.match(result.stderr, /release assets \(>\) differ from the stored bundle \(<\)/);
 }));
 
 test("a published release with the bundle's assets is verified without any upload", () => withFixture((release) => {
