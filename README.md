@@ -228,13 +228,13 @@ Releases are fully automated with [Conventional Commits](https://www.conventiona
 2. release-please maintains a release PR with the next semver bump and CHANGELOG
 3. Merging that PR creates an immutable tag and draft GitHub release, which triggers the publisher to:
    - Build the OS/arch matrix (linux/darwin/windows x amd64/arm64)
-   - Attach archives + checksums to the release, with a changelog grouped by type
-   - Publish the Homebrew cask to `jishnuteegala/homebrew-tap`
-   - Publish the Scoop manifest to `jishnuteegala/scoop-bucket`
+   - Attach archives + checksums to the draft release, with a changelog grouped by type
    - Publish `git-chunks` + per-platform binary packages to npm
-   - Publish the GitHub release after its directly controlled channels verify
+   - Publish the GitHub release after its assets and npm verify
+   - Publish the Homebrew cask to `jishnuteegala/homebrew-tap` once the release is public
+   - Publish the Scoop manifest to `jishnuteegala/scoop-bucket` once the release is public
    - Publish and verify the AUR package
-   - Submit the Chocolatey package once the release is public and verify it after moderation; a retry runs this even when other channels already hold a newer version
+   - Submit the Chocolatey package once the release is public and verify it after moderation; a retry of a published release runs this even when npm fails
    - Open and verify a PR to `microsoft/winget-pkgs` after release assets are public
 
 No manual steps between merging and published packages.

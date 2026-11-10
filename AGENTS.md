@@ -22,7 +22,8 @@
 
 - `.goreleaser.yaml` defines the six binary archives and eight native Linux packages (`deb`, `rpm`, `apk`, and `pkg.tar.zst` for amd64 and arm64).
 - npm is one launcher package plus six OS/CPU-specific binary packages. `scripts/publish-npm.mjs` requires exactly one GoReleaser `Binary` artifact for every platform and publishes the launcher last.
-- GitHub Releases hold the canonical checksummed payloads. Homebrew and Scoop publish manifests pointing to those exact assets. Winget submission runs only after the release is public.
+- GitHub Releases hold the canonical checksummed payloads. Payloads are uploaded only while the release is a draft; `finalize` publishes it once, after the GitHub assets verify against the bundle and npm succeeds. npm may publish first because its packages carry the binaries.
+- Homebrew, Scoop, Winget, AUR, and Chocolatey run only after the release is public, because their manifests point at release asset URLs. A failed channel after publish is retried by dispatching the published tag; that run uploads nothing to the GitHub release, verifies its assets against the stored bundle, fails on any difference, and then resumes the missing channels.
 - AUR publishes generated `PKGBUILD` and `.SRCINFO` files after the release is public, then verifies the exact remote Git tree. Chocolatey packages reference the canonical Windows archives and verify their SHA256 values; an accepted first submission remains unavailable until community moderation completes.
 - Release tags are immutable `v*` SemVer tags. A release retry must reuse and verify `release-bundle.tar.gz`; it must not rebuild a different bundle.
 
