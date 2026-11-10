@@ -9,11 +9,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   ACTIONLINT_VERSION: v1.7.7
+  ACTIONLINT_WINDOWS_AMD64_SHA256: 7f12f1801bca3d480d67aaf7774f4c2a6359a3ca8eebe382c95c10c9704aa731
   GOLANGCI_LINT_VERSION: v2.12.2
   GORELEASER_VERSION: v2.17.0
 
@@ -68,8 +69,6 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-          # There are no third-party runtime modules; cross-OS caches cost more
-          # to restore/save than this package takes to compile.
           cache: false
       - name: Test and build
         run: |
@@ -78,27 +77,19 @@ jobs:
           go build ./cmd/git-chunks
 
   release-checks:
-    needs: quality
-    if: ${{ always() }}
     runs-on: windows-latest
     timeout-minutes: 15
     defaults:
       run:
         shell: bash
     steps:
-      - name: Require quality checks
-        if: ${{ needs.quality.result != 'success' }}
-        run: exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-          # This job downloads the pinned GoReleaser module, so its module and
-          # build caches materially reduce repeat snapshot time.
-          cache: true
-          cache-dependency-path: go.mod
+          cache: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
@@ -107,15 +98,36 @@ jobs:
           node --test scripts/*.test.mjs
           bash -n scripts/install.sh scripts/uninstall.sh
       - name: Validate workflows
-        run: go run github.com/rhysd/actionlint/cmd/actionlint@${ACTIONLINT_VERSION}
+        run: |
+          cd "$RUNNER_TEMP"
+          curl -fsSLo actionlint.zip "https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_windows_amd64.zip"
+          echo "${ACTIONLINT_WINDOWS_AMD64_SHA256}  actionlint.zip" | sha256sum --check
+          unzip -q actionlint.zip actionlint.exe
+          actionlint="$PWD/actionlint.exe"
+          cd "$GITHUB_WORKSPACE"
+          "$actionlint"
+      - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
+        with:
+          version: ${{ env.GORELEASER_VERSION }}
+          install-only: true
       - name: Validate GoReleaser configuration
-        run: go run github.com/goreleaser/goreleaser/v2@${GORELEASER_VERSION} check
+        run: goreleaser check
       - name: Build and verify release snapshot
         run: |
-          go run github.com/goreleaser/goreleaser/v2@${GORELEASER_VERSION} release --snapshot --clean --skip=chocolatey
+          goreleaser release --snapshot --clean --skip=chocolatey
           VERSION=$(node -e 'const m=require("./dist/metadata.json"); process.stdout.write(m.version)')
           node scripts/verify-artifacts.mjs dist/artifacts.json "$VERSION"
           bash scripts/publish-npm.sh "$VERSION" --dry-run
           powershell.exe -NoProfile -File scripts/package-chocolatey.ps1 -Version "$VERSION"
       - name: Verify generated checks do not modify source
         run: git diff --exit-code
+
+  ci-ok:
+    needs: [conventional-commits, quality, test, release-checks]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every CI job to pass
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: exit 1

@@ -213,8 +213,7 @@ credential at its provider.
 - Keep default workflow permissions read-only.
 - Prevent Actions from approving pull requests.
 - Require maintainer approval before workflows from any external fork run.
-- Require `test (ubuntu-latest)`, `test (macos-latest)`,
-  `test (windows-latest)`, and `release-checks` on `main`.
+- Require the aggregate `ci-ok` check on `main`.
 - Protect immutable `v*` tags.
 - Allow only GitHub-owned actions and explicitly approved third-party actions,
   and enforce full-SHA pinning in repository settings.
