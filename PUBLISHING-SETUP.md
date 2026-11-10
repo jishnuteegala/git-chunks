@@ -181,10 +181,20 @@ After every release:
 7. Confirm Chocolatey is approved and its verifier/scan results pass. A
    successful push means **submitted**, not necessarily publicly installable.
 
+The publisher uploads every GitHub asset to the draft release, then publishes
+the release once those assets verify against the bundle and npm succeeds.
+Homebrew, Scoop, Winget, AUR, and Chocolatey run only after the release is
+public, because their manifests point at release asset URLs.
+
 Use **Actions -> Release -> Run workflow** with an existing immutable `v*` tag
 to retry. The workflow reuses `release-bundle.tar.gz`, verifies completed
 channels, and resumes missing channels. It never creates a new version, and it
-refuses a tag older than the latest release before any channel runs.
+refuses a tag older than the latest release before any channel runs. A draft
+release gets its assets uploaded again with `--clobber`. A published release
+is never modified: the retry only verifies its assets against the bundle's
+`checksums.txt` and fails on a missing, extra, or different asset, which can
+only be fixed by releasing a new version. This is how a channel that failed
+after publish (for example Homebrew or Scoop) is retried.
 
 ## Rotation and incident response
 

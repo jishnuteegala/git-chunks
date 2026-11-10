@@ -155,7 +155,7 @@ jobs:
       - run: bash scripts/publish-npm.sh "${TAG_NAME#v}" --prepared
 
   homebrew:
-    needs: [build, github]
+    needs: [build, finalize]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -171,7 +171,7 @@ jobs:
         run: bash scripts/publish-git-manifest.sh jishnuteegala/homebrew-tap dist/homebrew/Casks/git-chunks.rb Casks/git-chunks.rb "$TAG_NAME"
 
   scoop:
-    needs: [build, github]
+    needs: [build, finalize]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -248,7 +248,7 @@ jobs:
           ./scripts/publish-chocolatey.ps1 -Version $version
 
   finalize:
-    needs: [github, npm, homebrew, scoop]
+    needs: [github, npm]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

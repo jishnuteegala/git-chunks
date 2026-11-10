@@ -7,7 +7,7 @@ description: Maintain git-chunks release and distribution machinery. Use for GoR
 
 1. Classify the change by channel and artifact. Read `.goreleaser.yaml`, `.github/workflows/publish.yml`, and only the channel's publisher script. Treat `dist/` and `npm-stage/` as generated evidence, not source files. Completion: the source configuration, generated output, credential boundary, and remote verification point are identified.
 
-2. Preserve the canonical-bundle chain. The Windows build job creates or reuses one checksummed bundle; every channel consumes that bundle; GitHub assets are verified before manifest channels; the release becomes public after GitHub, npm, Homebrew, and Scoop; Winget runs afterward. Completion: retries cannot silently rebuild, replace, or accept payloads that differ from the stored bundle.
+2. Preserve the canonical-bundle chain. The Windows build job creates or reuses one checksummed bundle; every channel consumes that bundle; assets are uploaded only to the draft and verified against the bundle; the release becomes public after GitHub and npm; Homebrew, Scoop, Winget, AUR, and Chocolatey run afterward; a retry of a published release uploads nothing and only verifies. Completion: retries cannot silently rebuild, replace, or accept payloads that differ from the stored bundle.
 
 3. Preserve channel-specific guarantees:
 
