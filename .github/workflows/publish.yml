@@ -68,11 +68,14 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-          cache: true
-          cache-dependency-path: go.mod
+          cache: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
+      - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
+        with:
+          version: ${{ env.GORELEASER_VERSION }}
+          install-only: true
       - name: Reuse canonical bundle or build it once
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -93,7 +96,7 @@ jobs:
               fi
               git checkout -q "refs/tags/$TAG_NAME"
             fi
-            go run github.com/goreleaser/goreleaser/v2@${GORELEASER_VERSION} release --clean --skip=publish,chocolatey
+            goreleaser release --clean --skip=publish,chocolatey
             bash scripts/publish-npm.sh "${TAG_NAME#v}" --dry-run
             powershell.exe -NoProfile -File scripts/package-chocolatey.ps1 -Version "${TAG_NAME#v}"
             node scripts/verify-artifacts.mjs dist/artifacts.json "${TAG_NAME#v}"
