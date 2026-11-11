@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 var credentialURL = regexp.MustCompile(`([A-Za-z][A-Za-z0-9+.-]*://)[^/@\s]+@`)
@@ -22,13 +23,29 @@ func gitEnv() []string {
 	return append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 }
 
+// gitPath resolves git once per process: on Windows each lookup stats every
+// PATHEXT extension in every PATH directory ahead of Git's. On failure it
+// falls back to the bare name so exec.Command reports its own lookup error.
+var gitPath = sync.OnceValue(func() string {
+	if path, err := exec.LookPath("git"); err == nil {
+		return path
+	}
+	return "git"
+})
+
+func gitCommand(repo string, args ...string) *exec.Cmd {
+	cmd := exec.Command(gitPath(), args...)
+	// Git sees argv[0] as "git", as with a PATH lookup; the resolved path only starts the process.
+	cmd.Args[0] = "git"
+	cmd.Dir = repo
+	cmd.Env = gitEnv()
+	return cmd
+}
+
 // gitRaw returns output verbatim; needed for porcelain -z parsing where
 // leading spaces in status codes are significant.
 func gitRaw(repo string, args ...string) (string, error) {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = repo
-	cmd.Env = gitEnv()
-	out, err := cmd.CombinedOutput()
+	out, err := gitCommand(repo, args...).CombinedOutput()
 	if err != nil {
 		detail := strings.TrimSpace(credentialURL.ReplaceAllString(string(out), `${1}[redacted]@`))
 		if detail != "" {
@@ -40,14 +57,14 @@ func gitRaw(repo string, args ...string) (string, error) {
 }
 
 // pendingFiles lists all uncommitted changes (staged, unstaged, untracked)
-// with their on-disk sizes. Deleted files report size 0.
-func pendingFiles(repo string) ([]File, error) {
+// with their on-disk sizes, and reports whether git diff --cached sees staged
+// changes. Deleted files report size 0.
+func pendingFiles(repo string) (files []File, staged bool, err error) {
 	out, err := gitRaw(repo, "status", "--porcelain", "-z", "--untracked-files=all")
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	entries := strings.Split(out, "\x00")
-	var files []File
 	seen := map[string]bool{}
 	for i := 0; i < len(entries); i++ {
 		entry := entries[i]
@@ -55,6 +72,7 @@ func pendingFiles(repo string) ([]File, error) {
 			continue
 		}
 		status, path := entry[:2], entry[3:]
+		staged = staged || (status[0] != ' ' && status[0] != '?')
 		if strings.ContainsAny(status, "RC") {
 			i++ // skip the origin-path entry that follows renames/copies
 		}
@@ -62,21 +80,36 @@ func pendingFiles(repo string) ([]File, error) {
 			continue
 		}
 		seen[path] = true
-		var size int64
-		if info, err := os.Lstat(filepath.Join(repo, path)); err == nil && info.Mode().IsRegular() {
-			size = info.Size()
-		}
-		files = append(files, File{Path: path, Size: size})
+		files = append(files, File{Path: path})
 	}
-	return files, nil
+	if staged {
+		// Status still lists a staged submodule that diff.ignoreSubmodules or
+		// submodule.<name>.ignore hides, so git diff --cached has the final say.
+		diff, err := gitRaw(repo, "diff", "--cached", "--name-only", "-z")
+		if err != nil {
+			return nil, false, err
+		}
+		staged = diff != ""
+	}
+	statSizes(repo, files)
+	return files, staged, nil
 }
 
-func hasStagedChanges(repo string) (bool, error) {
-	out, err := gitRaw(repo, "diff", "--cached", "--name-only", "-z")
-	if err != nil {
-		return false, err
+// statSizes fills in regular-file sizes. Per-file Lstat latency dominates on
+// Windows, so a few workers overlap it.
+func statSizes(repo string, files []File) {
+	const workers = 8
+	var wg sync.WaitGroup
+	for w := range min(workers, len(files)) {
+		wg.Go(func() {
+			for i := w; i < len(files); i += workers {
+				if info, err := os.Lstat(filepath.Join(repo, files[i].Path)); err == nil && info.Mode().IsRegular() {
+					files[i].Size = info.Size()
+				}
+			}
+		})
 	}
-	return out != "", nil
+	wg.Wait()
 }
 
 func hasUnpushedCommits(repo, remote, branch string) (bool, error) {
@@ -109,10 +142,7 @@ func hasUnpushedCommits(repo, remote, branch string) (bool, error) {
 }
 
 func gitSuccess(repo string, args ...string) bool {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = repo
-	cmd.Env = gitEnv()
-	return cmd.Run() == nil
+	return gitCommand(repo, args...).Run() == nil
 }
 
 func currentBranch(repo string) (string, error) {

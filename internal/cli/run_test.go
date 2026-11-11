@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -829,12 +830,112 @@ func TestPendingFilesExcludesSymlinkTargetSize(t *testing.T) {
 	if err := os.Symlink("target", filepath.Join(repo, "link")); err != nil {
 		t.Fatal(err)
 	}
-	files, err := pendingFiles(repo)
+	files, _, err := pendingFiles(repo)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(files) != 1 || files[0].Path != "link" || files[0].Size != 0 {
 		t.Fatalf("pending files = %#v, want zero-sized link", files)
+	}
+}
+
+func TestPendingFilesSizesEveryFile(t *testing.T) {
+	repo := initRepo(t)
+	writeFile(t, repo, "gone.txt", 7)
+	mustGit(t, repo, "add", "gone.txt")
+	mustGit(t, repo, "commit", "-q", "-m", "gone")
+	if err := os.Remove(filepath.Join(repo, "gone.txt")); err != nil {
+		t.Fatal(err)
+	}
+	want := []File{{Path: "gone.txt"}}
+	for i := range 20 {
+		name := fmt.Sprintf("f%02d.txt", i)
+		writeFile(t, repo, name, i+1)
+		want = append(want, File{Path: name, Size: int64(i + 1)})
+	}
+	files, _, err := pendingFiles(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(files, want) {
+		t.Fatalf("pending files = %#v, want %#v", files, want)
+	}
+}
+
+func TestPendingFilesStagedMatchesDiffCached(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		unborn     bool
+		setup      func(t *testing.T, repo string)
+		wantStaged bool
+	}{
+		{name: "untracked", setup: func(t *testing.T, repo string) { writeFile(t, repo, "new.txt", 5) }},
+		{name: "unstaged modification", setup: func(t *testing.T, repo string) { writeFile(t, repo, "tracked.txt", 20) }},
+		{name: "intent to add", setup: func(t *testing.T, repo string) {
+			writeFile(t, repo, "new.txt", 5)
+			mustGit(t, repo, "add", "-N", "new.txt")
+		}},
+		{name: "staged addition", wantStaged: true, setup: func(t *testing.T, repo string) {
+			writeFile(t, repo, "new.txt", 5)
+			mustGit(t, repo, "add", "new.txt")
+		}},
+		{name: "staged modification then edited", wantStaged: true, setup: func(t *testing.T, repo string) {
+			writeFile(t, repo, "tracked.txt", 20)
+			mustGit(t, repo, "add", "tracked.txt")
+			writeFile(t, repo, "tracked.txt", 30)
+		}},
+		{name: "staged removal", wantStaged: true, setup: func(t *testing.T, repo string) {
+			mustGit(t, repo, "rm", "-q", "--cached", "tracked.txt")
+		}},
+		{name: "staged rename", wantStaged: true, setup: func(t *testing.T, repo string) {
+			mustGit(t, repo, "mv", "tracked.txt", "moved.txt")
+		}},
+		{name: "unmerged path", wantStaged: true, setup: func(t *testing.T, repo string) {
+			mustGit(t, repo, "checkout", "-q", "-b", "side")
+			writeFile(t, repo, "tracked.txt", 20)
+			mustGit(t, repo, "commit", "-q", "-am", "side")
+			mustGit(t, repo, "checkout", "-q", "main")
+			writeFile(t, repo, "tracked.txt", 30)
+			mustGit(t, repo, "commit", "-q", "-am", "main")
+			if gitSuccess(repo, "merge", "-q", "side") {
+				t.Fatal("expected a merge conflict")
+			}
+		}},
+		{name: "staged submodule hidden by diff.ignoreSubmodules", setup: func(t *testing.T, repo string) {
+			sub := filepath.Join(repo, "sub")
+			mustGit(t, repo, "init", "-q", "sub")
+			mustGit(t, sub, "-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-q", "--allow-empty", "-m", "one")
+			mustGit(t, repo, "add", "sub")
+			mustGit(t, repo, "commit", "-q", "-m", "sub")
+			mustGit(t, sub, "-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-q", "--allow-empty", "-m", "two")
+			mustGit(t, repo, "add", "sub")
+			mustGit(t, repo, "config", "diff.ignoreSubmodules", "all")
+		}},
+		{name: "unborn staged addition", unborn: true, wantStaged: true, setup: func(t *testing.T, repo string) {
+			writeFile(t, repo, "new.txt", 5)
+			mustGit(t, repo, "add", "new.txt")
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var repo string
+			if test.unborn {
+				repo = initUnbornRepo(t)
+			} else {
+				repo = initRepo(t)
+				writeFile(t, repo, "tracked.txt", 10)
+				mustGit(t, repo, "add", "tracked.txt")
+				mustGit(t, repo, "commit", "-q", "-m", "tracked")
+			}
+			test.setup(t, repo)
+			_, staged, err := pendingFiles(repo)
+			if err != nil {
+				t.Fatal(err)
+			}
+			diffCached := mustGit(t, repo, "diff", "--cached", "--name-only") != ""
+			if staged != test.wantStaged || staged != diffCached {
+				t.Fatalf("staged = %t, want %t (git diff --cached non-empty: %t)", staged, test.wantStaged, diffCached)
+			}
+		})
 	}
 }
 
@@ -894,7 +995,7 @@ func TestRunCommitsDeletedRenamedAndUntrackedPathsExactly(t *testing.T) {
 	}
 	writeFile(t, repo, "modify.txt", 20)
 	writeFile(t, repo, "untracked.txt", 30)
-	planned, err := pendingFiles(repo)
+	planned, _, err := pendingFiles(repo)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -982,8 +1083,27 @@ func TestLoggerTTYETAClearsPreviousLongerLine(t *testing.T) {
 
 func TestRunNotARepo(t *testing.T) {
 	dir := t.TempDir()
-	var out, errOut bytes.Buffer
-	if err := Run(Options{Repo: dir, MaxFiles: 1}, &out, &errOut); err == nil {
-		t.Fatal("expected error for non-repo directory")
+	for _, repo := range []string{dir, filepath.Join(dir, "missing")} {
+		for _, dryRun := range []bool{false, true} {
+			var out, errOut bytes.Buffer
+			err := Run(Options{Repo: repo, MaxFiles: 1, Message: "chunk", DryRun: dryRun}, &out, &errOut)
+			if want := "not a git repository: " + repo; err == nil || err.Error() != want {
+				t.Fatalf("Run(%q, dryRun=%v) error = %v, want %q", repo, dryRun, err, want)
+			}
+		}
+	}
+}
+
+func TestRunReportsStatusFailureInsideRepository(t *testing.T) {
+	repo := initRepo(t)
+	if err := os.WriteFile(filepath.Join(repo, ".git", "index"), []byte("corrupt"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, dryRun := range []bool{false, true} {
+		var out, errOut bytes.Buffer
+		err := Run(Options{Repo: repo, MaxFiles: 1, Message: "chunk", DryRun: dryRun}, &out, &errOut)
+		if err == nil || !strings.HasPrefix(err.Error(), "git command failed: ") {
+			t.Fatalf("Run(dryRun=%v) error = %v, want the git status failure", dryRun, err)
+		}
 	}
 }

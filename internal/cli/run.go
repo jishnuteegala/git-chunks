@@ -152,20 +152,16 @@ func run(ctx context.Context, opts Options, stdout, stderr io.Writer, deps runDe
 	if err != nil {
 		return err
 	}
-	if _, err := git(repo, "rev-parse", "--git-dir"); err != nil {
-		return fmt.Errorf("not a git repository: %s", repo)
-	}
-
-	files, err := pendingFiles(repo)
+	files, staged, err := pendingFiles(repo)
 	if err != nil {
+		// Probe only on failure: probing first would add a Git process to every run.
+		if !gitSuccess(repo, "rev-parse", "--git-dir") {
+			return fmt.Errorf("not a git repository: %s", repo)
+		}
 		return err
 	}
 	if opts.DryRun {
 		chunks := chunkFiles(files, opts.MaxFiles, int64(opts.MaxSize))
-		staged, err := hasStagedChanges(repo)
-		if err != nil {
-			return err
-		}
 		if staged {
 			logger.Warn("note: the index has staged changes; a real run would refuse")
 		}
@@ -182,14 +178,8 @@ func run(ctx context.Context, opts Options, stdout, stderr io.Writer, deps runDe
 			return usageError("--push requires an attached HEAD unless --branch is set")
 		}
 	}
-	if len(files) > 0 {
-		staged, err := hasStagedChanges(repo)
-		if err != nil {
-			return err
-		}
-		if staged {
-			return fmt.Errorf("the Git index contains staged changes; unstage them before running git-chunks")
-		}
+	if staged {
+		return fmt.Errorf("the Git index contains staged changes; unstage them before running git-chunks")
 	}
 
 	pushed := false
