@@ -1174,6 +1174,7 @@ func TestRunOutsideWorkTreeReportsGitError(t *testing.T) {
 		}
 	}
 }
+
 func TestRunReportsStatusFailureInsideRepository(t *testing.T) {
 	repo := initRepo(t)
 	if err := os.WriteFile(filepath.Join(repo, ".git", "index"), []byte("corrupt"), 0o644); err != nil {
