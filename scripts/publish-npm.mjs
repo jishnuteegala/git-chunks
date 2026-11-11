@@ -16,12 +16,15 @@ const platforms = [
 
 const semver = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
 const version = process.argv[2];
+const match = version && semver.exec(version);
 const dryRun = process.argv[3] === "--dry-run";
 const prepared = process.argv[3] === "--prepared";
-if (!version || !semver.test(version) || (process.argv[3] && !dryRun && !prepared) || process.argv.length > 4) {
+if (!match || (process.argv[3] && !dryRun && !prepared) || process.argv.length > 4) {
   console.error("usage: publish-npm.sh <SemVer version> [--dry-run|--prepared]");
   process.exit(2);
 }
+// npm refuses a prerelease without an explicit dist-tag, and `latest` must stay on stable versions.
+const distTag = match[4] ? ["--tag", "next"] : [];
 
 const scriptRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const root = resolve(process.env.PUBLISH_NPM_ROOT || scriptRoot);
@@ -214,7 +217,7 @@ async function publish(packages) {
       console.log(`verified existing ${pkg.json.name}@${version}`);
       continue;
     }
-    const result = runNpm(["publish", pkg.tarball, "--access", "public"], root);
+    const result = runNpm(["publish", pkg.tarball, "--access", "public", ...distTag], root);
     if (result.status !== 0) throw new Error((result.stderr || result.stdout || `npm publish failed`).trim());
     let visible = false;
     for (const delay of [0, 1, 2, 4, 8, 15, 30]) {

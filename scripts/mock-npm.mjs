@@ -73,8 +73,8 @@ if (command === "view" || command === "registry-view") {
 }
 
 if (command === "publish") {
-  appendFileSync(log, `${basename(args[0])}\n`);
-  appendFileSync(publishedLog, `${basename(args[0]).replace(/-\d+\.\d+\.\d+(?:-[^.]+)?\.tgz$/, "")}\n`);
+  appendFileSync(log, `${[basename(args[0]), ...args.slice(1)].join(" ")}\n`);
+  appendFileSync(publishedLog, `${readFileSync(args[0], "utf8")}\n`);
   process.exit(0);
 }
 

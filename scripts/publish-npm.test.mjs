@@ -77,18 +77,31 @@ test("fresh release preflights all packages and publishes main last", () => with
   assert.equal(result.status, 0, result.stderr);
   const calls = published(root);
   assert.equal(calls.length, 7);
-  assert.equal(calls.at(-1), "git-chunks-1.2.3.tgz");
+  assert.equal(calls.at(-1), "git-chunks-1.2.3.tgz --access public");
   for (const [, , key, binary] of platformPackages) {
     assert.equal(readFileSync(join(root, "npm-stage", `git-chunks-${key}`, "bin", binary), "utf8"),
       `${key.startsWith("windows") ? "windows" : key.split("-")[0]}/${key.endsWith("x64") ? "amd64" : "arm64"}`);
   }
 }));
 
+test("only prerelease versions publish under the next dist-tag", () => {
+  for (const [version, tag] of [["1.2.3", ""], ["1.2.3+build-1", ""], ["1.2.3-rc.1", " --tag next"]]) {
+    withFixture((root) => {
+      const result = run(root, "fresh", version);
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(published(root), [
+        ...platformPackages.map(([, , key]) => `git-chunks-${key}-${version}.tgz --access public${tag}`),
+        `git-chunks-${version}.tgz --access public${tag}`,
+      ]);
+    });
+  }
+});
+
 test("partial release verifies existing packages and resumes", () => withFixture((root) => {
   const result = run(root, "partial", "1.2.3");
   assert.equal(result.status, 0, result.stderr);
   assert.equal(published(root).length, 5);
-  assert.equal(published(root).at(-1), "git-chunks-1.2.3.tgz");
+  assert.equal(published(root).at(-1), "git-chunks-1.2.3.tgz --access public");
 }));
 
 test("complete release verifies all packages without publishing", () => withFixture((root) => {

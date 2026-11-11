@@ -38,15 +38,20 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
+    outputs:
+      prerelease: ${{ steps.tag.outputs.prerelease }}
     defaults:
       run:
         shell: bash
     steps:
       - name: Validate release tag
+        id: tag
         run: |
           VERSION="${TAG_NAME#v}" node -e '
             const semver = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
-            if (!process.env.TAG_NAME.startsWith("v") || !semver.test(process.env.VERSION)) process.exit(2);
+            const match = semver.exec(process.env.VERSION);
+            if (!process.env.TAG_NAME.startsWith("v") || !match) process.exit(2);
+            require("fs").appendFileSync(process.env.GITHUB_OUTPUT, `prerelease=${Boolean(match[4])}\n`);
           '
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -159,6 +164,7 @@ jobs:
 
   homebrew:
     needs: [build, finalize]
+    if: ${{ needs.build.outputs.prerelease == 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -175,6 +181,7 @@ jobs:
 
   scoop:
     needs: [build, finalize]
+    if: ${{ needs.build.outputs.prerelease == 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -191,6 +198,7 @@ jobs:
 
   winget:
     needs: [build, finalize]
+    if: ${{ needs.build.outputs.prerelease == 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -208,6 +216,7 @@ jobs:
 
   aur:
     needs: [build, finalize]
+    if: ${{ needs.build.outputs.prerelease == 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -224,7 +233,7 @@ jobs:
 
   chocolatey:
     needs: [build, github, finalize]
-    if: ${{ !cancelled() && needs.build.result == 'success' && needs.github.result == 'success' }}
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.github.result == 'success' && needs.build.outputs.prerelease == 'false' }}
     runs-on: windows-latest
     timeout-minutes: 10
     defaults:
@@ -251,7 +260,7 @@ jobs:
           ./scripts/publish-chocolatey.ps1 -Version $version
 
   finalize:
-    needs: [github, npm]
+    needs: [build, github, npm]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -260,8 +269,13 @@ jobs:
       - name: Publish completed release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
         run: |
           draft=$(gh release view "$TAG_NAME" --repo "${{ github.repository }}" --json isDraft --jq .isDraft)
           if [[ "$draft" == true ]]; then
-            gh release edit "$TAG_NAME" --repo "${{ github.repository }}" --draft=false
+            if [[ "$PRERELEASE" == true ]]; then
+              gh release edit "$TAG_NAME" --repo "${{ github.repository }}" --draft=false --prerelease --latest=false
+            else
+              gh release edit "$TAG_NAME" --repo "${{ github.repository }}" --draft=false
+            fi
           fi
