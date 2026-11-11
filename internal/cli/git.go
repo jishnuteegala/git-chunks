@@ -56,6 +56,25 @@ func gitRaw(repo string, args ...string) (string, error) {
 	return string(out), nil
 }
 
+// workTreeRoot resolves dir to the top level of its work tree. Porcelain paths
+// are relative to the top level while pathspecs are relative to the working
+// directory, so every later Git call and path join must start from the root.
+func workTreeRoot(dir string) (string, error) {
+	dir, err := filepath.Abs(dir)
+	if err != nil {
+		return "", err
+	}
+	root, err := git(dir, "rev-parse", "--show-toplevel")
+	if err != nil {
+		// A bare repository or .git directory also fails here; keep Git's own error for it.
+		if !gitSuccess(dir, "rev-parse", "--git-dir") {
+			return "", fmt.Errorf("not a git repository: %s", dir)
+		}
+		return "", err
+	}
+	return filepath.Clean(filepath.FromSlash(root)), nil
+}
+
 // pendingFiles lists all uncommitted changes (staged, unstaged, untracked)
 // with their on-disk sizes, and reports whether git diff --cached sees staged
 // changes. Deleted files report size 0.
