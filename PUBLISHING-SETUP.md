@@ -186,8 +186,8 @@ the release once those assets verify against the bundle and npm succeeds.
 Homebrew, Scoop, Winget, AUR, and Chocolatey run only after the release is
 public, because their manifests point at release asset URLs.
 
-A prerelease version (a SemVer `-` suffix, such as `v1.0.0-rc.1`) stays off
-stable channels: the release is published as a GitHub prerelease that is not
+A SemVer prerelease version (for example `v1.0.0-rc.1`) stays off stable
+channels: the release is published as a GitHub prerelease that is not
 marked latest, npm publishes all seven packages under the `next` dist-tag
 (`latest` keeps pointing at the newest stable version), and Homebrew, Scoop,
 Winget, AUR, and Chocolatey are skipped.

@@ -273,9 +273,7 @@ jobs:
         run: |
           draft=$(gh release view "$TAG_NAME" --repo "${{ github.repository }}" --json isDraft --jq .isDraft)
           if [[ "$draft" == true ]]; then
-            if [[ "$PRERELEASE" == true ]]; then
-              gh release edit "$TAG_NAME" --repo "${{ github.repository }}" --draft=false --prerelease --latest=false
-            else
-              gh release edit "$TAG_NAME" --repo "${{ github.repository }}" --draft=false
-            fi
+            flags=(--draft=false)
+            if [[ "$PRERELEASE" == true ]]; then flags+=(--prerelease --latest=false); fi
+            gh release edit "$TAG_NAME" --repo "${{ github.repository }}" "${flags[@]}"
           fi
