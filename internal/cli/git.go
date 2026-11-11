@@ -64,13 +64,18 @@ func workTreeRoot(dir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	root, err := git(dir, "rev-parse", "--show-toplevel")
+	out, err := gitRaw(dir, "rev-parse", "--show-toplevel")
 	if err != nil {
 		// A bare repository or .git directory also fails here; keep Git's own error for it.
 		if !gitSuccess(dir, "rev-parse", "--git-dir") {
 			return "", fmt.Errorf("not a git repository: %s", dir)
 		}
 		return "", err
+	}
+	root := strings.TrimSuffix(out, "\n")
+	if root == "" {
+		// Git before 2.25 prints nothing outside a work tree; git status then reports the error.
+		return dir, nil
 	}
 	return filepath.Clean(filepath.FromSlash(root)), nil
 }

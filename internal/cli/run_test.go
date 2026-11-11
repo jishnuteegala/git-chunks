@@ -1148,6 +1148,7 @@ func TestRunFromSubdirectoryUsesWorkTreeRoot(t *testing.T) {
 		})
 	}
 }
+
 func TestRunNotARepo(t *testing.T) {
 	dir := t.TempDir()
 	for _, repo := range []string{dir, filepath.Join(dir, "missing")} {
@@ -1161,6 +1162,18 @@ func TestRunNotARepo(t *testing.T) {
 	}
 }
 
+func TestRunOutsideWorkTreeReportsGitError(t *testing.T) {
+	work := initRepo(t)
+	bare := t.TempDir()
+	mustGit(t, bare, "init", "-q", "--bare")
+	for _, repo := range []string{bare, filepath.Join(work, ".git")} {
+		var out, errOut bytes.Buffer
+		err := Run(Options{Repo: repo, MaxFiles: 1, Message: "chunk", DryRun: true}, &out, &errOut)
+		if err == nil || !strings.HasPrefix(err.Error(), "git command failed: ") {
+			t.Fatalf("Run(%q) error = %v, want Git's own error", repo, err)
+		}
+	}
+}
 func TestRunReportsStatusFailureInsideRepository(t *testing.T) {
 	repo := initRepo(t)
 	if err := os.WriteFile(filepath.Join(repo, ".git", "index"), []byte("corrupt"), 0o644); err != nil {
