@@ -1081,6 +1081,74 @@ func TestLoggerTTYETAClearsPreviousLongerLine(t *testing.T) {
 	}
 }
 
+func TestRunFromSubdirectoryUsesWorkTreeRoot(t *testing.T) {
+	want := [][]File{
+		{{Path: "README", Size: 2000}, {Path: "root.txt", Size: 1000}},
+		{{Path: "sub/a.txt", Size: 3000}},
+		{{Path: "sub/b.txt", Size: 5000}},
+	}
+	for _, test := range []struct {
+		name string
+		repo func(t *testing.T, sub string) string
+	}{
+		{name: "repo flag", repo: func(t *testing.T, sub string) string { return sub }},
+		{name: "working directory", repo: func(t *testing.T, sub string) string { t.Chdir(sub); return "." }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := initRepo(t)
+			sub := filepath.Join(root, "sub")
+			if err := os.Mkdir(sub, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			// sub/README shares a name with the root README, so resolving
+			// root-relative paths against sub would stat and stage the wrong file.
+			writeFile(t, root, "README", 4)
+			writeFile(t, root, "sub/README", 4)
+			mustGit(t, root, "add", "-A")
+			mustGit(t, root, "commit", "-q", "-m", "readmes")
+			writeFile(t, root, "README", 2000)
+			writeFile(t, root, "root.txt", 1000)
+			writeFile(t, root, "sub/a.txt", 3000)
+			writeFile(t, root, "sub/b.txt", 5000)
+			repo := test.repo(t, sub)
+
+			var out, errOut bytes.Buffer
+			if err := Run(Options{Repo: repo, MaxSize: 4000, DryRun: true, JSON: true}, &out, &errOut); err != nil {
+				t.Fatal(err)
+			}
+			var plan []planChunk
+			if err := json.Unmarshal(out.Bytes(), &plan); err != nil {
+				t.Fatal(err)
+			}
+			if len(plan) != len(want) {
+				t.Fatalf("plan has %d chunks, want %d: %s", len(plan), len(want), out.String())
+			}
+			for i, chunk := range plan {
+				if !slices.Equal(chunk.Files, want[i]) {
+					t.Fatalf("chunk %d files = %#v, want %#v", i+1, chunk.Files, want[i])
+				}
+			}
+
+			if err := Run(Options{Repo: repo, MaxSize: 4000, Message: "chunk"}, &out, &errOut); err != nil {
+				t.Fatal(err)
+			}
+			if status := mustGit(t, root, "status", "--porcelain", "--untracked-files=all"); status != "" {
+				t.Fatalf("working tree not clean: %q", status)
+			}
+			for i, chunk := range want {
+				rev := fmt.Sprintf("HEAD~%d", len(want)-1-i)
+				var paths []string
+				for _, f := range chunk {
+					paths = append(paths, f.Path)
+				}
+				if got := mustGit(t, root, "diff-tree", "--no-commit-id", "--name-only", "-r", rev); got != strings.Join(paths, "\n") {
+					t.Fatalf("%s committed %q, want %q", rev, got, paths)
+				}
+			}
+		})
+	}
+}
+
 func TestRunNotARepo(t *testing.T) {
 	dir := t.TempDir()
 	for _, repo := range []string{dir, filepath.Join(dir, "missing")} {
@@ -1090,6 +1158,19 @@ func TestRunNotARepo(t *testing.T) {
 			if want := "not a git repository: " + repo; err == nil || err.Error() != want {
 				t.Fatalf("Run(%q, dryRun=%v) error = %v, want %q", repo, dryRun, err, want)
 			}
+		}
+	}
+}
+
+func TestRunOutsideWorkTreeReportsGitError(t *testing.T) {
+	work := initRepo(t)
+	bare := t.TempDir()
+	mustGit(t, bare, "init", "-q", "--bare")
+	for _, repo := range []string{bare, filepath.Join(work, ".git")} {
+		var out, errOut bytes.Buffer
+		err := Run(Options{Repo: repo, MaxFiles: 1, Message: "chunk", DryRun: true}, &out, &errOut)
+		if err == nil || !strings.HasPrefix(err.Error(), "git command failed: ") {
+			t.Fatalf("Run(%q) error = %v, want Git's own error", repo, err)
 		}
 	}
 }

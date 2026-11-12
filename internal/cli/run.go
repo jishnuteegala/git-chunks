@@ -7,7 +7,6 @@ import (
 	"io"
 	"math/rand"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -148,16 +147,12 @@ func run(ctx context.Context, opts Options, stdout, stderr io.Writer, deps runDe
 	// Finish any in-place ETA before Main writes a returned error to stderr.
 	defer logger.clearETA()
 
-	repo, err := filepath.Abs(opts.Repo)
+	repo, err := workTreeRoot(opts.Repo)
 	if err != nil {
 		return err
 	}
 	files, staged, err := pendingFiles(repo)
 	if err != nil {
-		// Probe only on failure: probing first would add a Git process to every run.
-		if !gitSuccess(repo, "rev-parse", "--git-dir") {
-			return fmt.Errorf("not a git repository: %s", repo)
-		}
 		return err
 	}
 	if opts.DryRun {
