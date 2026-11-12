@@ -1,5 +1,53 @@
 # Changelog
 
+## [0.4.0](https://github.com/jishnuteegala/git-chunks/compare/v0.3.0...v0.4.0) (2026-11-12)
+
+
+### Features
+
+* align changelog sections with shared template ([#32](https://github.com/jishnuteegala/git-chunks/issues/32)) ([28b2546](https://github.com/jishnuteegala/git-chunks/commit/28b25463b0c4c766d5d60f27c4dfb419a6db8330))
+* honest dry-run output with pre-pack estimate labels and additive JSON fields ([#30](https://github.com/jishnuteegala/git-chunks/issues/30)) ([cf0725e](https://github.com/jishnuteegala/git-chunks/commit/cf0725e2adb6a483b41cb3b15f1d228166915fd2))
+* randomised push spacing and live ETA ([#31](https://github.com/jishnuteegala/git-chunks/issues/31)) ([a51d501](https://github.com/jishnuteegala/git-chunks/commit/a51d501636550223770f5410776cad52b3a3d695))
+
+
+### Bug Fixes
+
+* **cli:** work from a subdirectory of the repository ([#45](https://github.com/jishnuteegala/git-chunks/issues/45)) ([6a6c5a4](https://github.com/jishnuteegala/git-chunks/commit/6a6c5a4a00f920b1ba22c1db8957b1728be08209))
+* disable Git terminal prompts so HTTPS remotes cannot block on credential input ([#36](https://github.com/jishnuteegala/git-chunks/issues/36)) ([ac7e025](https://github.com/jishnuteegala/git-chunks/commit/ac7e02546d6b7cf2baceeeb15c2525582281677d))
+
+
+### Performance Improvements
+
+* **cli:** derive the staged-index check from the status scan ([da2d19a](https://github.com/jishnuteegala/git-chunks/commit/da2d19a8bbfc3280086d11f84b29ba46ae7b214b))
+* **cli:** look up pending file sizes concurrently ([da2d19a](https://github.com/jishnuteegala/git-chunks/commit/da2d19a8bbfc3280086d11f84b29ba46ae7b214b))
+* **cli:** probe for a repository only after git status fails ([#44](https://github.com/jishnuteegala/git-chunks/issues/44)) ([da2d19a](https://github.com/jishnuteegala/git-chunks/commit/da2d19a8bbfc3280086d11f84b29ba46ae7b214b))
+* **cli:** resolve the git executable once per process ([da2d19a](https://github.com/jishnuteegala/git-chunks/commit/da2d19a8bbfc3280086d11f84b29ba46ae7b214b))
+
+
+### Documentation
+
+* align CLI help, README, llms.txt, and packaging metadata with the ([ac7e025](https://github.com/jishnuteegala/git-chunks/commit/ac7e02546d6b7cf2baceeeb15c2525582281677d))
+* document winget local validation workflow ([#33](https://github.com/jishnuteegala/git-chunks/issues/33)) ([03bb56a](https://github.com/jishnuteegala/git-chunks/commit/03bb56a2a78be09ef7bf13b7951de8c7f786eaa6))
+
+
+### Build System
+
+* **deps:** bump actions/checkout from 7.0.0 to 7.0.1 ([#24](https://github.com/jishnuteegala/git-chunks/issues/24)) ([74a4c23](https://github.com/jishnuteegala/git-chunks/commit/74a4c23c768c48e1f58b8e991a68346ac38995cd))
+* **deps:** bump actions/setup-go from 5.6.0 to 7.0.0 ([#23](https://github.com/jishnuteegala/git-chunks/issues/23)) ([b1e0cb2](https://github.com/jishnuteegala/git-chunks/commit/b1e0cb2c7b27fc7484aa9ce350ef931f04305b8f))
+* **deps:** bump googleapis/release-please-action from 4.4.1 to 5.0.0 ([#22](https://github.com/jishnuteegala/git-chunks/issues/22)) ([85f40bf](https://github.com/jishnuteegala/git-chunks/commit/85f40bf819358210344b721ec1246c808b66e848))
+
+
+### Continuous Integration
+
+* cancel superseded CI runs only for pull requests ([f93db57](https://github.com/jishnuteegala/git-chunks/commit/f93db57c5d7ae262173c04ae4d1929a5c40b5034))
+* fix npm launcher retry check and refuse release downgrades ([#42](https://github.com/jishnuteegala/git-chunks/issues/42)) ([49908db](https://github.com/jishnuteegala/git-chunks/commit/49908db5bf8bec91f52969ada390fb2376ffea88))
+* gate merges on a ci-ok aggregate and speed up release-checks ([#41](https://github.com/jishnuteegala/git-chunks/issues/41)) ([f93db57](https://github.com/jishnuteegala/git-chunks/commit/f93db57c5d7ae262173c04ae4d1929a5c40b5034))
+* keep prerelease tags off stable release channels ([#43](https://github.com/jishnuteegala/git-chunks/issues/43)) ([f35dd9b](https://github.com/jishnuteegala/git-chunks/commit/f35dd9ba1c87745ee18b12b0c5bc7d8d61d35a27))
+* publish Homebrew and Scoop only after the GitHub release is public ([49908db](https://github.com/jishnuteegala/git-chunks/commit/49908db5bf8bec91f52969ada390fb2376ffea88))
+* run Chocolatey retry independently of other channels ([#35](https://github.com/jishnuteegala/git-chunks/issues/35)) ([4faf2cf](https://github.com/jishnuteegala/git-chunks/commit/4faf2cf15791c3bcf686acfc6b7c5643d1c9b868))
+* validate conventional commit subjects via shared action ([#34](https://github.com/jishnuteegala/git-chunks/issues/34)) ([31bcd86](https://github.com/jishnuteegala/git-chunks/commit/31bcd867d4cdb3a73cefd85086119ab55f24b5c6))
+* verify a published release against the bundle instead of re-uploading its assets ([49908db](https://github.com/jishnuteegala/git-chunks/commit/49908db5bf8bec91f52969ada390fb2376ffea88))
+
 ## [0.3.0](https://github.com/jishnuteegala/git-chunks/compare/v0.2.0...v0.3.0) (2026-07-28)
 
 
