@@ -12,9 +12,13 @@ committed work so rerunning the same command resumes where it stopped.
 - `push-unpushed-first` pushes already-existing unpushed commits before
   creating any new chunk.
 - `push-retry` retries transient failures with exponential backoff up to
-  `--retries` (default 3, max 6).
+  `--retries` (default 3, max 6) - `--retries` counts retries, so total
+  attempts are `retries + 1`, and only transient errors retry; permanent
+  rejections (pre-receive, non-fast-forward, auth) fail immediately.
 - `push-spacing` waits a random delay inside the `--spacing` range
-  between chunk pushes.
+  before each chunk push once a push has already happened in the same
+  run - N chunks sleep N-1 times normally, but N times when the run
+  first pushed unpushed leftovers.
 - `push-resume` keeps committed chunks after a failed push; the next run
   pushes them before chunking what remains.
 - `push-diverged` refuses to chunk when the remote is ahead or has
@@ -47,9 +51,14 @@ Preconditions:
   --retries 0`: exit code 1, but `git -C work log` still holds the chunk
   commits. Remove the hook, rerun the same command: the preserved
   commits push and the run completes.
-- **Remote ahead.** Commit directly inside `remote.git` (or push from a
-  second clone) so the remote moves ahead, then run `-p`: exit code 1,
-  stderr says to integrate the remote, no new commits are created.
+- **Remote ahead.** Push from a second clone (`git clone remote.git
+  ahead-clone; commit; push` - the fresh clone needs `user.name`/
+  `user.email` set when no global identity exists) so the remote moves
+  ahead - `remote.git` is bare, so committing inside it is not possible.
+  Then run `-p`: exit
+  code 1, stderr wraps `remote origin/main is ahead; integrate it before
+  pushing` inside `could not check for existing unpushed commits; no new
+  commits were created: ...`, and no new commits are created.
 - **Spacing contract.** With `-p --spacing 1s-1s` and two chunks, the
   run sleeps once between pushes; on `--dry-run` the plan prints the
   expected total spacing delay.
@@ -61,7 +70,13 @@ Preconditions:
 - Push failure messages are progress, not data: they land on stderr;
   proof is the remote `git log`, not the progress text.
 - `--retries 0` is harmless on failure-injection drives: a `pre-receive`
-  rejection is permanent, so it is never retried either way.
+  rejection is permanent, so it is never retried either way; it still
+  makes its one attempt (`retries + 1` total).
 - `--spacing` requires `--push` (or `--dry-run`); using it alone exits 2.
+  It also accepts a single duration (`45s`), not only a range.
 - A resumed run only chunks what is still pending; count remote commits
-  rather than assuming the same plan replays.
+  rather than assuming the same plan replays. A clean tree with leftover
+  unpushed commits still resumes (pushes them, prints `Nothing to
+  commit.`, exit 0).
+- A detached HEAD with `-p` and no `--branch` is a usage error: exit 2,
+  not 1.

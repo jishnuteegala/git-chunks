@@ -30,6 +30,8 @@ the recipe.
   produced nothing.
 - A drive that pushes proves against the scratch bare remote with
   `git -C remote.git log`/`rev-list`, never a network remote.
+- `--help` prints usage to stderr, not stdout - capture both streams in
+  the doctor or the usage text is invisible.
 - Treat every command literally; quote paths.
 
 ## Proof and skip reporting

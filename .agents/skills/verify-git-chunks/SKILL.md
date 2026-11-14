@@ -114,12 +114,15 @@ build or checkout is broken; do not drive.
   }
   ```
 
-- Scratch 401 server (credential-prompt drive only): returns HTTP 401 to
-  every request, so a `http://127.0.0.1:<port>` remote demands credentials
-  no terminal can supply:
+- Scratch 401 server (credential-prompt drive only): returns HTTP 401
+  with a `WWW-Authenticate` challenge to every request, so a
+  `http://127.0.0.1:<port>` remote demands credentials no terminal can
+  supply (the header mimics a real authenticated endpoint; current git
+  demands credentials on a bare 401 too, but older git only prompts
+  after a challenge):
 
   ```sh
-  node -e 'require("http").createServer((q,s)=>{s.writeHead(401);s.end()}).listen(0,"127.0.0.1",function(){console.log(this.address().port)})' \
+  node -e 'require("http").createServer((q,s)=>{s.writeHead(401,{"WWW-Authenticate":"Basic realm=\"git\""});s.end()}).listen(0,"127.0.0.1",function(){console.log(this.address().port)})' \
     > "$RUN_DIR/scratch/port.txt" & echo $! > "$RUN_DIR/scratch/server.pid"
   ```
 
