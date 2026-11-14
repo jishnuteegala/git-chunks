@@ -41,8 +41,10 @@ Preconditions:
 - **Message prefix.** Repeat with `-m "import"`: the log shows
   `import (1/N)` style subjects.
 - **Index guard.** Stage any file (`git add`), then run `git-chunks -C
-  scratch/demo/work -n 1`: exit code 1, stderr reports the staged index,
-  `git log` gains no commits, and the staged file is still staged.
+  scratch/demo/work -n 1`: exit code 1, stderr reads exactly
+  `git-chunks: the Git index contains staged changes; unstage them
+  before running git-chunks`, `git log` gains no commits, and the
+  staged file is still staged (the index is untouched byte-for-byte).
 - **Oversize single file.** With `-s 1K` and one file of 2 KB plus one
   of 10 B, the run still succeeds: the large file gets its own commit.
 - **Untracked and modified.** A mix of a modified tracked file and a new
@@ -53,7 +55,9 @@ Preconditions:
 
 - `--max-size` counts current regular-file bytes on disk: deletions,
   symlinks, submodules, and history contribute nothing, so push size is
-  only a heuristic.
+  only a heuristic. Units are binary (`K`=1024, `M`=1 MiB, `G`=1 GiB;
+  `1.5M` decimals allowed) and the boundary is strictly over - a chunk
+  may sum to exactly `-s`.
 - At least one of `-n`/`-s` is required; omitting both exits 2 before
   touching the repository.
 - A failed run must restore an empty index - always confirm `git diff
