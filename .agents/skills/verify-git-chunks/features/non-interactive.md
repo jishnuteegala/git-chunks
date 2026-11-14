@@ -38,14 +38,20 @@ Preconditions:
 
 - **401 fails fast.** With the isolated config, run `git-chunks -C
   scratch/creds/work -n 1 -p` after adding a pending file. The command
-  returns exit 1 within seconds - not a hang - and stderr carries
-  `terminal prompts disabled`; `git -C scratch/creds/work log` shows
-  only `init` (the run exits at the unpushed-commits check, before any
-  chunk is created).
+  returns exit 1 within seconds - not a hang - and stderr carries the
+  substring `terminal prompts disabled` (the full line is `git-chunks:
+  could not check for existing unpushed commits; no new commits were
+  created: git command failed: exit status 128: fatal: could not read
+  Username for 'http://...': terminal prompts disabled`); `git -C
+  scratch/creds/work log` shows only `init` (the run exits at the
+  unpushed-commits check, before any chunk is created). The failure is
+  classified non-transient, so it is never retried.
 - **Prompt would fire without the guard.** Sanity-check the fixture:
   `GIT_TERMINAL_PROMPT= git -C scratch/creds/work ls-remote origin`
-  against the same 401 server prompts or stalls, proving the endpoint
-  really demands credentials.
+  against the same 401 server proves the endpoint demands credentials -
+  in a non-TTY capture it fails fast with a `could not read Username`
+  error rather than visibly prompting, so run it in a real terminal or
+  treat "not an instant clean response" as the pass signal.
 - **Local remotes unaffected.** The `mkrepo` fixtures push over
   filesystem paths and need no credentials; push drives elsewhere in the
   map keep working under the same environment.

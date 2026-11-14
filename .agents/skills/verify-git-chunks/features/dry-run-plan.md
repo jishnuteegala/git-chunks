@@ -7,15 +7,23 @@ anything.
 
 ## Sub-features
 
-- `plan-text` prints human-readable chunk lines and proposed messages on
-  stdout, ending with `Dry run: no commits made.`
-- `plan-json` emits the plan as a JSON array on stdout; each entry
-  carries `index`, `files` (capitalized `Path`/`Size`), `size`,
-  `uncompressed_bytes_estimate`, and `proposed_message`.
+- `plan-text` prints a `[i/N] k file(s), <size> (pre-pack estimate)`
+  header per chunk, an indented `proposed message:` line, and one
+  indented `path (size)` line per file; a non-empty plan then prints
+  `estimates are pre-pack; actual sizes will differ` plus an optional
+  spacing line. `Dry run: no commits made.` always prints last - it is
+  the only stdout line for an empty plan.
+- `plan-json` emits the plan as a pretty-printed JSON array on stdout;
+  each entry carries `index` (1-based), `files` (capitalized
+  `Path`/`Size`), `size`, `uncompressed_bytes_estimate`, and
+  `proposed_message`. `size`/`uncompressed_bytes_estimate` are raw byte
+  counts (unlike the human-formatted text plan).
 - `plan-readonly` leaves the index, commits, and working tree untouched
-  and warns - on stderr - when staged changes exist instead of refusing.
-- `plan-spacing` appends the expected total spacing delay when
-  `--spacing` is set and the plan holds more than one chunk.
+  and warns - on stderr - when staged changes exist instead of refusing;
+  staged files are still listed in the printed plan.
+- `plan-spacing` appends `expected total spacing delay: <min x (N-1)>-<max x (N-1)>` when
+  `--spacing` is set and the plan holds more than one chunk (a single
+  duration like `--spacing 45s` prints `45s-45s`).
 
 ## How to get to it (user POV)
 
@@ -51,6 +59,11 @@ Preconditions:
 - Progress/diagnostics share stderr with the staged-index warning;
   capture both streams or the warning is invisible.
 - `--json` is only valid with `--dry-run` - proving the pair means
-  asserting both the plan file and the usage-error exit code.
+  asserting both the plan file and the usage-error exit code. Validation
+  order matters: `--json` alone (no `-n`/`-s`) exits 2 with the
+  missing-criterion message, not `--json requires --dry-run`; pass a
+  criterion to see the documented message.
 - `size` and `uncompressed_bytes_estimate` are the same pre-pack
   estimate; do not treat either as a wire-size guarantee.
+- `--dry-run -p` is legal and touches no remote - it returns before
+  branch resolution, so no `ls-remote` traffic happens at all.
