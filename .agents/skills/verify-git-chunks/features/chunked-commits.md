@@ -44,7 +44,9 @@ Preconditions:
   scratch/demo/work -n 1`: exit code 1, stderr reads exactly
   `git-chunks: the Git index contains staged changes; unstage them
   before running git-chunks`, `git log` gains no commits, and the
-  staged file is still staged (the index is untouched byte-for-byte).
+  staged file is still staged (`git diff --cached --name-only` still
+  lists it; git-chunks issues no index-mutating command before the
+  guard).
 - **Oversize single file.** With `-s 1K` and one file of 2 KB plus one
   of 10 B, the run still succeeds: the large file gets its own commit.
 - **Untracked and modified.** A mix of a modified tracked file and a new
