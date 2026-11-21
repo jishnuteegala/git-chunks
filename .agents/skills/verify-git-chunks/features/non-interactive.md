@@ -32,9 +32,10 @@ Preconditions:
 - Git config is isolated so no credential helper can answer: set
   `GIT_CONFIG_NOSYSTEM=1` and point `HOME` (and `XDG_CONFIG_HOME` where
   honored) at an empty `scratch/home` for the driven command.
-- A fixture made with `mkrepo creds` provides `scratch/creds/work`; its
-  `origin` is repointed at `http://127.0.0.1:$(cat
-  scratch/port.txt)/repo.git`.
+- A fixture made with `mkrepo creds` provides `scratch/creds/work`;
+  repoint `origin` at the 401 server with
+  `git -C scratch/creds/work remote set-url origin
+  http://127.0.0.1:$(cat scratch/port.txt)/repo.git`.
 
 - **401 fails fast.** With the isolated config, run `git-chunks -C
   scratch/creds/work -n 1 -p` after adding a pending file. The command
@@ -45,7 +46,8 @@ Preconditions:
   Username for 'http://...': terminal prompts disabled`); `git -C
   scratch/creds/work log` shows only `init` (the run exits at the
   unpushed-commits check, before any chunk is created). The failure is
-  classified non-transient, so it is never retried.
+  in `ls-remote`, outside the push-retry loop, so no retry wraps it -
+  it returns immediately.
 - **Prompt would fire without the guard.** Sanity-check the fixture:
   `GIT_TERMINAL_PROMPT= git -C scratch/creds/work ls-remote origin`
   against the same 401 server proves the endpoint demands credentials -
